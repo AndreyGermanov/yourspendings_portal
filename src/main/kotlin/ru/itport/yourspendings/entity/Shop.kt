@@ -1,4 +1,4 @@
-package ru.itport.yourspendings.ru.itport.yourspendings.entity
+package ru.itport.yourspendings.entity
 
 import javax.persistence.*
 

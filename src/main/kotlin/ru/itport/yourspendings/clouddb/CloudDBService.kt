@@ -1,4 +1,4 @@
-package ru.itport.yourspendings.ru.itport.yourspendings.clouddb
+package ru.itport.yourspendings.clouddb
 
 interface CloudDBService {
 

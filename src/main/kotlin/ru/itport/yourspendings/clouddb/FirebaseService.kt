@@ -1,4 +1,4 @@
-package ru.itport.yourspendings.ru.itport.yourspendings.clouddb
+package ru.itport.yourspendings.clouddb
 
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.firestore.Firestore
@@ -8,12 +8,12 @@ import com.google.firebase.cloud.FirestoreClient
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Component
-import ru.itport.yourspendings.ru.itport.yourspendings.entity.Purchase
-import ru.itport.yourspendings.ru.itport.yourspendings.entity.PurchaseImage
-import ru.itport.yourspendings.ru.itport.yourspendings.entity.Shop
-import ru.itport.yourspendings.ru.itport.yourspendings.ru.itport.yourspendings.dao.PurchaseImagesRepository
-import ru.itport.yourspendings.ru.itport.yourspendings.ru.itport.yourspendings.dao.PurchasesRepository
-import ru.itport.yourspendings.ru.itport.yourspendings.ru.itport.yourspendings.dao.ShopsRepository
+import ru.itport.yourspendings.entity.Purchase
+import ru.itport.yourspendings.entity.PurchaseImage
+import ru.itport.yourspendings.entity.Shop
+import ru.itport.yourspendings.dao.PurchaseImagesRepository
+import ru.itport.yourspendings.dao.PurchasesRepository
+import ru.itport.yourspendings.dao.ShopsRepository
 import java.io.FileInputStream
 import java.util.*
 
@@ -45,7 +45,8 @@ class FirebaseService: CloudDBService {
     override fun stopDataSync() = timer.cancel()
 
     override fun syncData(callback: () -> Unit) {
-        FirestoreClient.getFirestore().apply { syncShops(this);syncPurchases(this)}
+        FirestoreClient.getFirestore().apply {
+            syncShops(this);syncPurchases(this)}
     }
 
     fun syncShops(db: Firestore) {

@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.stereotype.Component
-import ru.itport.yourspendings.ru.itport.yourspendings.clouddb.CloudDBService
+import ru.itport.yourspendings.clouddb.CloudDBService
 import java.util.logging.Logger
 
 @Component
@@ -17,7 +17,7 @@ class AppStartupRunner: ApplicationRunner {
 
     override fun run(args: ApplicationArguments?) {
         cloudService.init()
-        cloudService.startDataSync()
+        //cloudService.startDataSync()
     }
 
 
