@@ -7,6 +7,9 @@ import com.google.firebase.FirebaseOptions
 import com.google.firebase.cloud.FirestoreClient
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.core.io.ClassPathResource
+import org.springframework.data.domain.Sort
+import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Component
 import ru.itport.yourspendings.entity.Purchase
 import ru.itport.yourspendings.entity.PurchaseImage
@@ -14,7 +17,7 @@ import ru.itport.yourspendings.entity.Shop
 import ru.itport.yourspendings.dao.PurchaseImagesRepository
 import ru.itport.yourspendings.dao.PurchasesRepository
 import ru.itport.yourspendings.dao.ShopsRepository
-import java.io.FileInputStream
+import ru.itport.yourspendings.entity.YModel
 import java.util.*
 
 @Suppress("UNCHECKED_CAST")
@@ -28,14 +31,18 @@ class FirebaseService: CloudDBService {
 
     lateinit var timer: Timer
 
+    var lastTimestamp:HashMap<String,Long?> = HashMap()
+
     @Autowired lateinit var shopsRepository: ShopsRepository
     @Autowired lateinit var purchasesRepository: PurchasesRepository
     @Autowired lateinit var purchaseImagesRepository: PurchaseImagesRepository
+    lateinit var db: Firestore
 
     override fun init() {
-        FirebaseApp.initializeApp(FirebaseOptions.Builder()
-                .setCredentials(GoogleCredentials.fromStream(FileInputStream(configFilePath)))
-                .setDatabaseUrl(databaseName).build())
+        if (FirebaseApp.getApps().size == 0 )
+            FirebaseApp.initializeApp(FirebaseOptions.Builder()
+                    .setCredentials(GoogleCredentials.fromStream(ClassPathResource(configFilePath).inputStream))
+                    .setDatabaseUrl(databaseName).build())
     }
 
     override fun startDataSync() {
@@ -45,29 +52,32 @@ class FirebaseService: CloudDBService {
     override fun stopDataSync() = timer.cancel()
 
     override fun syncData(callback: () -> Unit) {
-        FirestoreClient.getFirestore().apply {
-            syncShops(this);syncPurchases(this)}
+        FirestoreClient.getFirestore().apply { db = this
+            syncShops();syncPurchases()
+        }
     }
 
-    fun syncShops(db: Firestore) {
-        db.collection("shops").get().get().documents.forEach { val data = it.data;
+    fun syncShops() {
+        getLastData("shops",shopsRepository) { val data = it
             Shop(
                 id = data["id"]!!.toString(),
                 name = data["name"].toString(),
                 latitude = data["latitude"].toString().toDoubleOrNull() ?: 0.0,
                 longitude = data["longitude"].toString().toDoubleOrNull() ?: 0.0,
-                userId = data["userId"].toString()
+                userId = data["user_id"].toString(),
+                updatedAt = Date((data["updated_at"]?.toString()?.toLong() ?: 0)*1000)
             ).also { shopsRepository.save(it) }
         }
     }
 
-    fun syncPurchases(db: Firestore) {
-        db.collection("purchases").get().get().documents.forEach { val data = it.data
+    fun syncPurchases() {
+        getLastData("purchases",purchasesRepository) { val data = it
             Purchase(
                 id = data["id"]!!.toString(),
                 date = data["date"] as Date,
                 place = shopsRepository.findById(data["place_id"]!!.toString()).orElse(null),
-                userId = data["user_id"]!!.toString()
+                userId = data["user_id"]!!.toString(),
+                updatedAt = Date((data["updated_at"]?.toString()?.toLong() ?: 0)*1000)
             ).also {
                 purchasesRepository.save(it)
                 syncPurchaseImages(data["images"],it)
@@ -85,6 +95,19 @@ class FirebaseService: CloudDBService {
                 ).also { purchaseImagesRepository.save(it)}
             }
         }
+    }
+
+    private fun <T: YModel,U>getLastUpdateTimestamp(repository:JpaRepository<T,U>, collection:String):Long {
+        var updatedAt = lastTimestamp[collection]
+        if (updatedAt == null)
+            updatedAt = repository.findAll(Sort.by(Sort.Direction.DESC,"updatedAt"))
+                    .firstOrNull()?.updatedAt?.time.apply { lastTimestamp[collection] = this }
+        return (updatedAt ?: 0)/1000
+    }
+
+    private fun <T:YModel,U> getLastData(collection:String,repository:JpaRepository<T,U>,callback:(MutableMap<String,Any>)->Unit) {
+        db.collection(collection).whereGreaterThan("updated_at",getLastUpdateTimestamp(repository,collection))
+                .get().get().documents.forEach { callback(it.data) }
     }
 
     inner class SyncTask: TimerTask() {

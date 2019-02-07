@@ -16,6 +16,8 @@ data class Purchase(
     var place: Shop? = null,
     @Column(name="user_id")
     val userId: String,
+    @Column(name="updated_at")
+    override val updatedAt:Date,
     @OneToMany(mappedBy="purchase")
     var images:List<PurchaseImage>? = null
-)
+): YModel(updatedAt)

@@ -1,4 +1,4 @@
-package ru.itport.yourspendings.security
+package ru.itport.yourspendings.config
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Configuration
@@ -14,13 +14,18 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.data.rest.core.config.RepositoryRestConfiguration
 import org.springframework.data.rest.webmvc.config.RepositoryRestConfigurerAdapter
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
+import javax.sql.DataSource
 
 @Configuration
 @EnableWebSecurity
+@EnableGlobalMethodSecurity(securedEnabled = true, prePostEnabled = true)
 class WebSecurityConfig : WebSecurityConfigurerAdapter() {
 
     @Autowired lateinit var restAuthenticationEntryPoint: RestAuthenticationEntryPoint
+
+    @Autowired lateinit var dataSource: DataSource
 
     override fun configure(http: HttpSecurity) {
         http.cors().and()
@@ -29,6 +34,7 @@ class WebSecurityConfig : WebSecurityConfigurerAdapter() {
                 .authenticationEntryPoint(restAuthenticationEntryPoint)
                 .and()
                 .authorizeRequests()
+                .antMatchers("/api/users/**").hasRole("ADMIN")
                 .antMatchers("/api/**").hasRole("USER")
                 .antMatchers("/**").permitAll()
                 .and()
@@ -42,9 +48,13 @@ class WebSecurityConfig : WebSecurityConfigurerAdapter() {
     override fun configure(auth: AuthenticationManagerBuilder?) {
         val encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder()
         auth?.let {
+            it.jdbcAuthentication().dataSource(dataSource)
+
+            /*
             it.inMemoryAuthentication()
                     .passwordEncoder(encoder)
                     .withUser("user").password(encoder.encode("111111")).roles("USER")
+                    */
         }
     }
 
