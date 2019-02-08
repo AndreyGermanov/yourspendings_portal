@@ -1,9 +1,7 @@
 package ru.itport.yourspendings.clouddb
 
 interface CloudDBService {
-
-    fun init()
-    fun syncData(callback:()->Unit)
+    fun syncData()
     fun startDataSync()
     fun stopDataSync()
 }

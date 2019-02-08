@@ -12,10 +12,7 @@ import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.stereotype.Component
 import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
-import org.springframework.data.rest.core.config.RepositoryRestConfiguration
-import org.springframework.data.rest.webmvc.config.RepositoryRestConfigurerAdapter
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity
-import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import javax.sql.DataSource
 
 @Configuration
@@ -41,20 +38,11 @@ class WebSecurityConfig : WebSecurityConfigurerAdapter() {
                 .formLogin()
                 .and()
                 .logout().logoutSuccessUrl("/")
-
-
     }
 
     override fun configure(auth: AuthenticationManagerBuilder?) {
-        val encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder()
         auth?.let {
             it.jdbcAuthentication().dataSource(dataSource)
-
-            /*
-            it.inMemoryAuthentication()
-                    .passwordEncoder(encoder)
-                    .withUser("user").password(encoder.encode("111111")).roles("USER")
-                    */
         }
     }
 
@@ -78,17 +66,5 @@ class RestAuthenticationEntryPoint : AuthenticationEntryPoint {
         response?.status = HttpServletResponse.SC_UNAUTHORIZED
     }
 
-}
-
-@Component
-class SpringDataRestCustomization : RepositoryRestConfigurerAdapter() {
-
-    override fun configureRepositoryRestConfiguration(config: RepositoryRestConfiguration?) {
-
-        config!!.corsRegistry.addMapping("/api/**")
-                .allowedOrigins("*")
-                .allowedMethods("PUT", "DELETE", "POST", "GET","OPTIONS")
-                .allowCredentials(true).maxAge(3600)
-    }
 }
 
