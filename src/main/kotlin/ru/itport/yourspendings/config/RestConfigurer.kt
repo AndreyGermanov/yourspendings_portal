@@ -23,8 +23,7 @@ import ru.itport.yourspendings.entity.*
 @Component
 class SpringDataRestConfig : RepositoryRestConfigurerAdapter() {
     lateinit var config: RepositoryRestConfiguration
-    var entities = ArrayList<Class<*>>()
-    val interfaces = ArrayList<Class<*>>()
+    var entities = ArrayList<HashMap<String,Class<*>>>()
 
     override fun configureRepositoryRestConfiguration(config: RepositoryRestConfiguration) {
         this.config = config
@@ -52,8 +51,7 @@ class SpringDataRestConfig : RepositoryRestConfigurerAdapter() {
         }
         config.exposeIdsFor(User::class.java,Shop::class.java,Purchase::class.java)
         config.setRepositoryDetectionStrategy {
-            entities.add(it.domainType)
-            interfaces.add(it.repositoryInterface)
+            entities.add(hashMapOf("entity" to it.domainType,"interface" to it.repositoryInterface))
             true
         }
         config.corsRegistry.addMapping("/api/**")

@@ -41,7 +41,6 @@ class FirebaseCloudService: CloudDBService {
             .forEach { createUser(it).also { purchaseUsers.save(it) } }
     }
 
-
     fun createUser(data:MutableMap<String,Any>):PurchaseUser = PurchaseUser(
         id = data["id"].toString(),
         name = data["name"].toString(),
@@ -93,7 +92,7 @@ class FirebaseCloudService: CloudDBService {
     private fun createPurchaseImage(purchase:Purchase,id:String,timestamp:String): PurchaseImage =
         PurchaseImage(id = id, timestamp = timestamp.toIntOrNull() ?: 0, purchase = purchase)
 
-    open fun <T:YModel,U> getLastData(collection:String,repository:JpaRepository<T,U>):List<MutableMap<String,Any>> {
+    fun <T:YModel,U> getLastData(collection:String,repository:JpaRepository<T,U>):List<MutableMap<String,Any>> {
         return db.collection(collection).whereGreaterThan("updated_at", getLastUpdateTimestamp(repository, collection))
                 .orderBy("updated_at", Query.Direction.ASCENDING)
                 .get().get().documents.map { it.data; }
