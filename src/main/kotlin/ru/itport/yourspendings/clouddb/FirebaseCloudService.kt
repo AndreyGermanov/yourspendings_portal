@@ -6,26 +6,26 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Component
-import ru.itport.yourspendings.entity.Purchase
-import ru.itport.yourspendings.entity.PurchaseImage
-import ru.itport.yourspendings.entity.Shop
 import ru.itport.yourspendings.dao.PurchaseImagesRepository
+import ru.itport.yourspendings.dao.PurchaseUsersRepository
 import ru.itport.yourspendings.dao.PurchasesRepository
 import ru.itport.yourspendings.dao.ShopsRepository
-import ru.itport.yourspendings.entity.YModel
+import ru.itport.yourspendings.entity.*
 import java.util.*
 
 @Suppress("UNCHECKED_CAST")
 @Component
 @ConfigurationProperties("cloudservice")
-open class FirebaseCloudService: CloudDBService {
+class FirebaseCloudService: CloudDBService {
 
     var syncInterval:Long = 0
     lateinit var timer: Timer
     var lastTimestamp:HashMap<String,Long?> = HashMap()
-    @Autowired lateinit var shopsRepository: ShopsRepository
-    @Autowired lateinit var purchasesRepository: PurchasesRepository
-    @Autowired lateinit var purchaseImagesRepository: PurchaseImagesRepository
+    @Autowired lateinit var shops: ShopsRepository
+    @Autowired lateinit var purchases: PurchasesRepository
+    @Autowired lateinit var purchaseImages: PurchaseImagesRepository
+    @Autowired lateinit var purchaseUsers: PurchaseUsersRepository
+    @Autowired lateinit var auth: FirebaseAuthService
     @Autowired lateinit var db: FirestoreService
 
     override fun startDataSync() {
@@ -35,18 +35,32 @@ open class FirebaseCloudService: CloudDBService {
 
     override fun stopDataSync() = timer.cancel()
 
-    override fun syncData() { syncShops();syncPurchases() }
+    override fun syncData() { syncUsers(); syncShops(); syncPurchases() }
+
+    fun syncUsers() { auth.list(getLastUpdateTimestamp(purchaseUsers,"purchase_users")*1000)
+            .forEach { createUser(it).also { purchaseUsers.save(it) } }
+    }
+
+
+    fun createUser(data:MutableMap<String,Any>):PurchaseUser = PurchaseUser(
+        id = data["id"].toString(),
+        name = data["name"].toString(),
+        email = data["email"].toString(),
+        phone = data["phone"].toString(),
+        isDisabled = data["disabled"].toString().toBoolean(),
+        updatedAt =  data["updated_at"] as Date
+    )
 
     fun syncShops() {
-        getLastData("shops", shopsRepository).also {
-            it.forEach { createShop(it).also { println(shopsRepository); shopsRepository.save(it) } }
+        getLastData("shops", shops).also {
+            it.forEach { createShop(it).also { shops.save(it) } }
         }
     }
 
     fun syncPurchases() =
-        getLastData("purchases",purchasesRepository).also {
+        getLastData("purchases",purchases).also {
             it.forEach { val data=it; createPurchase(it).also {
-                purchasesRepository.save(it)
+                purchases.save(it)
                 syncPurchaseImages(data["images"] as? MutableMap<String,String> ,it)
             } }
         }
@@ -57,7 +71,7 @@ open class FirebaseCloudService: CloudDBService {
             name = data["name"].toString(),
             latitude = data["latitude"].toString().toDoubleOrNull() ?: 0.0,
             longitude = data["longitude"].toString().toDoubleOrNull() ?: 0.0,
-            userId = data["user_id"].toString(),
+            user = purchaseUsers.findById(data["user_id"].toString()).get(),
             updatedAt = Date((data["updated_at"]?.toString()?.toLong() ?: 0)*1000)
         )
 
@@ -65,14 +79,14 @@ open class FirebaseCloudService: CloudDBService {
         Purchase(
             id = data["id"]!!.toString(),
             date = data["date"] as Date,
-            place = shopsRepository.findById(data["place_id"]!!.toString()).orElse(null),
-            userId = data["user_id"]!!.toString(),
+            place = shops.findById(data["place_id"]!!.toString()).orElse(null),
+            user = purchaseUsers.findById(data["user_id"].toString()).get(),
             updatedAt = Date((data["updated_at"]?.toString()?.toLong() ?: 0)*1000)
         )
 
     private fun syncPurchaseImages(images:MutableMap<String,String>?,purchase:Purchase) {
         images?.let { it.forEach {
-            createPurchaseImage(purchase,it.key,it.value).also { purchaseImagesRepository.save(it) }
+            createPurchaseImage(purchase,it.key,it.value).also { purchaseImages.save(it) }
         } }
     }
 

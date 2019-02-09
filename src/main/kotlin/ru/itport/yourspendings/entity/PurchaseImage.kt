@@ -5,12 +5,16 @@ import javax.persistence.*
 @Entity
 @Table(name="purchase_images")
 data class PurchaseImage (
+
     @Id
     @Column(name="id")
     val id:String,
+
     @Column(name="timestamp")
     val timestamp:Int,
+
     @ManyToOne
     @JoinColumn(name="purchase_id")
     val purchase:Purchase
+
 )

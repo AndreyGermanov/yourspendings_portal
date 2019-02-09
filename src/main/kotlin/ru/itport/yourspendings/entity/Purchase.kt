@@ -6,18 +6,26 @@ import javax.persistence.*
 @Entity
 @Table(name="purchases")
 data class Purchase(
-        @Id
+
+    @Id
     @Column(name="id")
     val id:String,
+
     @Column(name="date")
     val date: Date,
+
+    @Column(name="updated_at")
+    override val updatedAt:Date,
+
     @ManyToOne
     @JoinColumn(name="place_id")
     var place: Shop? = null,
-    @Column(name="user_id")
-    val userId: String,
-    @Column(name="updated_at")
-    override val updatedAt:Date,
+
     @OneToMany(mappedBy="purchase")
-    var images:List<PurchaseImage>? = null
+    var images:List<PurchaseImage>? = null,
+
+    @ManyToOne
+    @JoinColumn(name="user_id")
+    val user:PurchaseUser
+
 ): YModel(updatedAt)
