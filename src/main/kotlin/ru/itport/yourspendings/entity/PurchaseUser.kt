@@ -5,7 +5,7 @@ import javax.persistence.*
 
 @Entity
 @Table(name="purchase_users")
-class PurchaseUser(
+data class PurchaseUser(
 
         @Id
         @Column(name="id")

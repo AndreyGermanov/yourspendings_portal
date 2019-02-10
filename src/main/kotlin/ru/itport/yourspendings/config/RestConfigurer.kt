@@ -49,7 +49,7 @@ class SpringDataRestConfig : RepositoryRestConfigurerAdapter() {
                 httpMethods.disable(HttpMethod.POST,HttpMethod.PUT,HttpMethod.DELETE,HttpMethod.PATCH)
             }
         }
-        config.exposeIdsFor(User::class.java,Shop::class.java,Purchase::class.java)
+        config.exposeIdsFor(User::class.java,Shop::class.java,Purchase::class.java,Discount::class.java,PurchaseDiscount::class.java)
         config.setRepositoryDetectionStrategy {
             entities.add(hashMapOf("entity" to it.domainType,"interface" to it.repositoryInterface))
             true

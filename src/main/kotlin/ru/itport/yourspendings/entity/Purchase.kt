@@ -1,5 +1,6 @@
 package ru.itport.yourspendings.entity
 
+import org.springframework.data.rest.core.config.Projection
 import java.util.*
 import javax.persistence.*
 
@@ -26,6 +27,21 @@ data class Purchase(
 
     @ManyToOne
     @JoinColumn(name="user_id")
-    val user:PurchaseUser
+    val user:PurchaseUser,
+
+    @OneToMany(mappedBy="purchase")
+    val purchaseDiscounts:List<PurchaseDiscount>? = null
 
 ): YModel(updatedAt)
+
+@Projection(name="fullPurchase",types=[Purchase::class])
+public interface fullPurchase {
+    val id:String
+    val date: Date
+    val updatedAt:Date
+    val place: Shop
+    val images: List<PurchaseImage>
+    val purchaseDiscounts: List<PurchaseDiscount>
+    val user:PurchaseUser
+
+}
