@@ -15,5 +15,5 @@ data class Discount (
     val name:String,
 
     @OneToMany(mappedBy="discount")
-    val purchaseDiscounts:List<PurchaseDiscount>? = null
+    var purchaseDiscounts:List<PurchaseDiscount>? = null
 )

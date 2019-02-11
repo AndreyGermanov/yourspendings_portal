@@ -30,7 +30,7 @@ data class PurchaseUser(
         val shops: List<Shop>? = null,
 
         @OneToMany(mappedBy="user")
-        val purchases: List<Purchase>? = null
+        var purchases: List<Purchase>? = null
 
 ): YModel(updatedAt) {
 }
