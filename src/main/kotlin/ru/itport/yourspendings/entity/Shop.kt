@@ -1,6 +1,5 @@
 package ru.itport.yourspendings.entity
 
-import org.hibernate.validator.constraints.CreditCardNumber
 import org.springframework.validation.annotation.Validated
 import java.util.*
 import javax.persistence.*

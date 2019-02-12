@@ -1,9 +1,6 @@
 package ru.itport.yourspendings.entity
 
-import javax.persistence.Column
-import javax.persistence.Entity
-import javax.persistence.Id
-import javax.persistence.Table
+import javax.persistence.*
 
 @Entity
 @Table(name="users")
@@ -17,5 +14,9 @@ data class User (
     val password:String,
 
     @Column(name="enabled")
-    val enabled:Boolean
+    val enabled:Boolean,
+
+    @OneToMany(mappedBy="user")
+    val roles:List<Role>
+
 )
