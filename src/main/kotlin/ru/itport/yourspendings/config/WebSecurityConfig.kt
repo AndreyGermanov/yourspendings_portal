@@ -44,6 +44,8 @@ class WebSecurityConfig : WebSecurityConfigurerAdapter() {
     override fun configure(auth: AuthenticationManagerBuilder?) {
         auth?.let {
             it.jdbcAuthentication().dataSource(dataSource)
+                    .usersByUsernameQuery("select id,password,enabled from users where id = ?")
+                    .authoritiesByUsernameQuery("select user_id,authority from authorities where user_id = ?")
         }
     }
 
@@ -68,4 +70,3 @@ class RestAuthenticationEntryPoint : AuthenticationEntryPoint {
     }
 
 }
-

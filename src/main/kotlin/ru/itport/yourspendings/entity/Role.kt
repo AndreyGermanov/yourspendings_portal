@@ -7,14 +7,15 @@ import javax.persistence.*
 class Role (
 
     @Id
-    @Column(name="username")
-    val userName: String,
+    @Column(name="id")
+    @GeneratedValue(strategy=GenerationType.IDENTITY)
+    val userName: Int,
 
     @Column(name="authority")
     val role:String,
 
     @ManyToOne
-    @JoinColumn(name="username")
+    @JoinColumn(name="user_id")
     val user:User
 
 )

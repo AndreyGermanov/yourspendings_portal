@@ -7,7 +7,7 @@ import javax.persistence.*
 data class User (
 
     @Id
-    @Column(name="username")
+    @Column(name="id")
     val username:String,
 
     @Column(name="password")
