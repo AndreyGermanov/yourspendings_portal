@@ -1,5 +1,6 @@
 package ru.itport.yourspendings.entity
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import javax.persistence.*
 
 @Entity
@@ -7,16 +8,23 @@ import javax.persistence.*
 data class User (
 
     @Id
+    @GeneratedValue(strategy=GenerationType.IDENTITY)
     @Column(name="id")
-    val username:String,
+    val uid:Int,
+
+    @Column(name="name")
+    val name:String,
 
     @Column(name="password")
+    @JsonIgnore
     val password:String,
+
 
     @Column(name="enabled")
     val enabled:Boolean,
 
-    @OneToMany(mappedBy="user")
-    val roles:List<Role>
+    @ManyToMany
+    @JoinTable(name="users_roles", joinColumns=[JoinColumn(name="user_id")], inverseJoinColumns = [JoinColumn(name="role_id")])
+    var roles:List<Role>? = null
 
 )

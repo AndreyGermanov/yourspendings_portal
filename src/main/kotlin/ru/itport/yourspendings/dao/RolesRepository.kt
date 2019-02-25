@@ -5,4 +5,4 @@ import org.springframework.security.access.prepost.PreAuthorize
 import ru.itport.yourspendings.entity.Role
 
 @PreAuthorize("hasRole('ROLE_ADMIN')")
-interface RolesRepository: JpaRepository<Role,String>
+interface RolesRepository: JpaRepository<Role,Int>

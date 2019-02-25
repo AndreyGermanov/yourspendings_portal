@@ -13,6 +13,15 @@ import org.springframework.stereotype.Component
 import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity
+import org.springframework.security.core.GrantedAuthority
+import org.springframework.security.core.authority.AuthorityUtils
+import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.core.userdetails.User
+import org.springframework.security.core.userdetails.UserDetails
+import org.springframework.security.core.userdetails.jdbc.JdbcDaoImpl
+import org.springframework.stereotype.Service
+import ru.itport.yourspendings.dao.AdminUsersRepository
+import javax.annotation.PostConstruct
 import javax.sql.DataSource
 
 @Configuration
@@ -22,7 +31,7 @@ class WebSecurityConfig : WebSecurityConfigurerAdapter() {
 
     @Autowired lateinit var restAuthenticationEntryPoint: RestAuthenticationEntryPoint
 
-    @Autowired lateinit var dataSource: DataSource
+    @Autowired lateinit var usersService: UsersService
 
     override fun configure(http: HttpSecurity) {
         http.cors().and()
@@ -43,9 +52,7 @@ class WebSecurityConfig : WebSecurityConfigurerAdapter() {
 
     override fun configure(auth: AuthenticationManagerBuilder?) {
         auth?.let {
-            it.jdbcAuthentication().dataSource(dataSource)
-                    .usersByUsernameQuery("select id,password,enabled from users where id = ?")
-                    .authoritiesByUsernameQuery("select user_id,authority from authorities where user_id = ?")
+            it.userDetailsService(usersService)
         }
     }
 
@@ -68,5 +75,29 @@ class RestAuthenticationEntryPoint : AuthenticationEntryPoint {
                           authException: org.springframework.security.core.AuthenticationException?) {
         response?.status = HttpServletResponse.SC_UNAUTHORIZED
     }
+}
 
+@Service
+class UsersService : JdbcDaoImpl() {
+
+    @Autowired lateinit var usersRepo: AdminUsersRepository
+    @Autowired lateinit var dbSource: DataSource
+
+    @PostConstruct
+    private fun initialize() {
+        setDataSource(dbSource)
+    }
+
+    override fun loadUsersByUsername(username: String): MutableList<UserDetails> =
+    ArrayList<UserDetails>().apply { usersRepo.findByName(username)?.let {
+            add(User(it.name, it.password, it.enabled, true, true, true, AuthorityUtils.NO_AUTHORITIES))
+        }
+    }
+
+    override fun loadUserAuthorities(username: String): MutableList<GrantedAuthority> =
+    ArrayList<GrantedAuthority>().apply {
+        usersRepo.findByName(username)?.let { user ->
+            user.roles?.forEach {role -> add(SimpleGrantedAuthority("ROLE_"+role.roleId)) }
+        }
+    }
 }
