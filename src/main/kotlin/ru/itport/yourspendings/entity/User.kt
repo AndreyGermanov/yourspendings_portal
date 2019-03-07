@@ -10,18 +10,18 @@ data class User (
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     @Column(name="id")
-    val uid:Int,
+    var uid:Int,
 
     @Column(name="name")
-    val name:String,
+    var name:String,
 
     @Column(name="password")
     @JsonIgnore
-    val password:String,
+    var password:String,
 
 
     @Column(name="enabled")
-    val enabled:Boolean,
+    var enabled:Boolean,
 
     @ManyToMany
     @JoinTable(name="users_roles", joinColumns=[JoinColumn(name="user_id")], inverseJoinColumns = [JoinColumn(name="role_id")])

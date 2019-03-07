@@ -56,7 +56,7 @@ class SpringDataRestConfig : RepositoryRestConfigurerAdapter() {
         }
         config.corsRegistry.addMapping("/api/**")
                 .allowedOrigins("*")
-                .allowedMethods("PUT", "DELETE", "POST", "GET","OPTIONS")
+                .allowedMethods("PUT", "DELETE", "POST", "PATCH", "GET","OPTIONS")
                 .allowCredentials(true).maxAge(3600)
     }
 }

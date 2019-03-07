@@ -6,5 +6,10 @@ import ru.itport.yourspendings.entity.Role
 import javax.swing.text.html.parser.Entity
 
 @RestController
-@RequestMapping("/api/roles")
-class RolesController:EntityController<Role>("Role")
+@RequestMapping("/api/role")
+class RolesController:EntityController<Role>("Role") {
+
+    override fun getItemId(id:Any):Any {
+        return id.toString().toIntOrNull() ?: 0
+    }
+}

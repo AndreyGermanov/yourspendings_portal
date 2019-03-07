@@ -10,13 +10,13 @@ class Role (
     @Id
     @Column(name="id")
     @GeneratedValue(strategy=GenerationType.IDENTITY)
-    val uid: Int,
+    var uid: Int,
 
     @Column(name="role_id")
-    val roleId:String,
+    var roleId:String,
 
     @Column(name="name")
-    val name:String,
+    var name:String,
 
     @ManyToMany
     @JoinTable(name="users_roles", joinColumns = [JoinColumn(name="role_id")], inverseJoinColumns = [JoinColumn(name="user_id")])

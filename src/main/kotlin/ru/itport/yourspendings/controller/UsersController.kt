@@ -9,8 +9,10 @@ import ru.itport.yourspendings.entity.User
 import javax.persistence.EntityManager
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/user")
 @PreAuthorize("hasRole('ROLE_ADMIN')")
 class UsersController:EntityController<User>("User") {
-
+    override fun getItemId(id:Any):Any {
+        return id.toString().toIntOrNull() ?: 0
+    }
 }
