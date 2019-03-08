@@ -27,7 +27,7 @@ class AuthController {
         "roles" to auth.authorities.map { it.authority },
         "username" to (auth.principal as User).username,
         "modules" to restConfig.entities.filter {
-            var result = true
+            var result = false
             (it["interface"]!!.annotations.firstOrNull {
                 it.annotationClass.simpleName == "PreAuthorize"
             } as? PreAuthorize)?.let {

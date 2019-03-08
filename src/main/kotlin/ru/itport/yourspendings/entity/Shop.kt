@@ -13,7 +13,7 @@ data class Shop (
         @Id
         @Column(name="id")
         @NotNull
-        var id:String?,
+        var uid:String?,
 
         @Column(name="name")
         val name:String,

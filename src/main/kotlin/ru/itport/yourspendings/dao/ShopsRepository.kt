@@ -4,11 +4,13 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Component
 import org.springframework.validation.Errors
 import org.springframework.validation.Validator
 import ru.itport.yourspendings.entity.Shop
 
+@PreAuthorize("hasRole('ROLE_USER')")
 interface ShopsRepository: JpaRepository<Shop, String> {
 
     @Query("select s from Shop s where s.name = :name and s.id != :id ")
@@ -30,7 +32,7 @@ open class ShopValidator(val isNew:Boolean): Validator {
             shop = if (isNew)
                 shopsRepository.findByName(target.name)
             else
-                shopsRepository.findByNameAndNotId(target.name,target.id!!)
+                shopsRepository.findByNameAndNotId(target.name,target.uid!!)
             if (shop != null) errors.rejectValue("name","Item with specified 'name' already exists")
         }
     }

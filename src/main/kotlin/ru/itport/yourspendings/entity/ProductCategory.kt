@@ -1,5 +1,6 @@
 package ru.itport.yourspendings.entity
 
+import com.fasterxml.jackson.annotation.JsonBackReference
 import javax.persistence.*
 
 @Entity
@@ -9,7 +10,7 @@ class ProductCategory (
     @Id
     @GeneratedValue(strategy= GenerationType.IDENTITY)
     @Column(name="id")
-    var id:Long? = null,
+    var uid:Long? = null,
 
     @Column(name="name")
     val name:String,
@@ -19,6 +20,7 @@ class ProductCategory (
     var parent:ProductCategory?=null,
 
     @OneToMany(mappedBy="parent")
+    @JsonBackReference
     var subCategories: List<ProductCategory>? = null,
 
     @OneToMany(mappedBy="category")

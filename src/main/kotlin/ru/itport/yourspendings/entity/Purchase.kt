@@ -10,7 +10,7 @@ data class Purchase(
 
     @Id
     @Column(name="id")
-    val id:String,
+    val uid:String,
 
     @Column(name="date")
     val date: Date,

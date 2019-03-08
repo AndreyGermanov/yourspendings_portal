@@ -36,9 +36,9 @@ class DiscountsTests {
         jdbcTemplate.execute("delete from shops")
         jdbcTemplate.execute("delete from purchase_users")
 
-        user = PurchaseUser(id="user1",name="User 1",email="user1@email.ru",phone="112323",isDisabled=false,
+        user = PurchaseUser(uid="user1",name="User 1",email="user1@email.ru",phone="112323",isDisabled=false,
                 updatedAt= Date()).also { purchaseUsers.save(it)}
-        shop = Shop(id="sh1",name="Shop 1",updatedAt = Date(),latitude=5.0,longitude=6.0,user=user).also {shops.save(it)}
+        shop = Shop(uid="sh1",name="Shop 1",updatedAt = Date(),latitude=5.0,longitude=6.0,user=user).also {shops.save(it)}
     }
 
     @Test
@@ -65,6 +65,6 @@ class DiscountsTests {
 
     fun createDiscount(name:String):Discount = discounts.save(Discount(name=name))
 
-    fun createPurchase(id:String): Purchase = purchases.save(Purchase(id=id,place=shop,date=Date(),updatedAt=Date(),user=user))
+    fun createPurchase(id:String): Purchase = purchases.save(Purchase(uid=id,place=shop,date=Date(),updatedAt=Date(),user=user))
 
 }

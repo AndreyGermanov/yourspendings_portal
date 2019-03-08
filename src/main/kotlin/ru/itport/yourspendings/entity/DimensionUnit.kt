@@ -9,7 +9,7 @@ class DimensionUnit (
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     @Column(name="id")
-    var id:Int? = null,
+    var uid:Int? = null,
 
     @Column(name="name")
     val name:String

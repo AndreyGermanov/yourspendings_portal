@@ -9,7 +9,7 @@ data class PurchaseDiscount(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="id")
-    val id:Long?=0,
+    val uid:Long?=0,
 
     @Column(name="amount")
     val amount:Double,

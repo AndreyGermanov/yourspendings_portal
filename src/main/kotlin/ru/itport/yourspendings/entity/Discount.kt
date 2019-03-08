@@ -9,7 +9,7 @@ data class Discount (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="id")
-    val id:Int?=0,
+    val uid:Int?=0,
 
     @Column(name="name")
     val name:String,

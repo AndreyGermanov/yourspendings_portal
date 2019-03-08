@@ -1,6 +1,5 @@
 package ru.itport.yourspendings.entity
 
-import com.fasterxml.jackson.annotation.JsonIgnore
 import javax.persistence.*
 
 @Entity
@@ -16,7 +15,6 @@ data class User (
     var name:String,
 
     @Column(name="password")
-    @JsonIgnore
     var password:String,
 
 

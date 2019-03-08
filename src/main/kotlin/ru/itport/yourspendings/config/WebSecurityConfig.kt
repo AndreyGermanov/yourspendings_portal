@@ -20,8 +20,8 @@ import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.jdbc.JdbcDaoImpl
 import org.springframework.stereotype.Service
-import ru.itport.yourspendings.dao.AdminUsersRepository
 import javax.annotation.PostConstruct
+import javax.persistence.EntityManager
 import javax.sql.DataSource
 
 @Configuration
@@ -41,6 +41,8 @@ class WebSecurityConfig : WebSecurityConfigurerAdapter() {
                 .and()
                 .authorizeRequests()
                 .antMatchers("/api/").denyAll()
+                .antMatchers("/api/user/**").hasRole("ADMIN")
+                .antMatchers("/api/role/**").hasRole("ADMIN")
                 .antMatchers("/api/**").hasRole("USER")
                 .antMatchers("/auth/profile").hasRole("USER")
                 .antMatchers("/**").permitAll()
@@ -80,8 +82,8 @@ class RestAuthenticationEntryPoint : AuthenticationEntryPoint {
 @Service
 class UsersService : JdbcDaoImpl() {
 
-    @Autowired lateinit var usersRepo: AdminUsersRepository
     @Autowired lateinit var dbSource: DataSource
+    @Autowired lateinit var entityManager: EntityManager
 
     @PostConstruct
     private fun initialize() {
@@ -89,14 +91,17 @@ class UsersService : JdbcDaoImpl() {
     }
 
     override fun loadUsersByUsername(username: String): MutableList<UserDetails> =
-    ArrayList<UserDetails>().apply { usersRepo.findByName(username)?.let {
+    ArrayList<UserDetails>().apply {
+        (entityManager.createQuery("SELECT u FROM User u WHERE name='$username'")
+                .singleResult as? ru.itport.yourspendings.entity.User)?.let {
             add(User(it.name, it.password, it.enabled, true, true, true, AuthorityUtils.NO_AUTHORITIES))
         }
     }
 
     override fun loadUserAuthorities(username: String): MutableList<GrantedAuthority> =
     ArrayList<GrantedAuthority>().apply {
-        usersRepo.findByName(username)?.let { user ->
+        (entityManager.createQuery("SELECT u FROM User u WHERE name='$username'")
+                .singleResult as? ru.itport.yourspendings.entity.User)?.let { user ->
             user.roles?.forEach {role -> add(SimpleGrantedAuthority("ROLE_"+role.roleId)) }
         }
     }

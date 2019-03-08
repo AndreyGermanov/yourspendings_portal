@@ -42,7 +42,7 @@ class FirebaseCloudService: CloudDBService {
     }
 
     fun createUser(data:MutableMap<String,Any>):PurchaseUser = PurchaseUser(
-        id = data["id"].toString(),
+        uid = data["id"].toString(),
         name = data["name"].toString(),
         email = data["email"].toString(),
         phone = data["phone"].toString(),
@@ -66,7 +66,7 @@ class FirebaseCloudService: CloudDBService {
 
     fun createShop(data:MutableMap<String,Any>) =
         Shop(
-            id = data["id"]!!.toString(),
+            uid = data["id"]!!.toString(),
             name = data["name"].toString(),
             latitude = data["latitude"].toString().toDoubleOrNull() ?: 0.0,
             longitude = data["longitude"].toString().toDoubleOrNull() ?: 0.0,
@@ -76,7 +76,7 @@ class FirebaseCloudService: CloudDBService {
 
     fun createPurchase(data:MutableMap<String,Any>): Purchase =
         Purchase(
-            id = data["id"]!!.toString(),
+            uid = data["id"]!!.toString(),
             date = data["date"] as Date,
             place = shops.findById(data["place_id"]!!.toString()).orElse(null),
             user = purchaseUsers.findById(data["user_id"].toString()).get(),
@@ -90,7 +90,7 @@ class FirebaseCloudService: CloudDBService {
     }
 
     private fun createPurchaseImage(purchase:Purchase,id:String,timestamp:String): PurchaseImage =
-        PurchaseImage(id = id, timestamp = timestamp.toIntOrNull() ?: 0, purchase = purchase)
+        PurchaseImage(uid = id, timestamp = timestamp.toIntOrNull() ?: 0, purchase = purchase)
 
     fun <T:YModel,U> getLastData(collection:String,repository:JpaRepository<T,U>):List<MutableMap<String,Any>> {
         return db.collection(collection).whereGreaterThan("updated_at", getLastUpdateTimestamp(repository, collection))

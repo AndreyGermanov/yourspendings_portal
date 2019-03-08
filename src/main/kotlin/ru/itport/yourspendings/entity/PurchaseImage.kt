@@ -8,7 +8,7 @@ data class PurchaseImage (
 
     @Id
     @Column(name="id")
-    val id:String,
+    val uid:String,
 
     @Column(name="timestamp")
     val timestamp:Int,

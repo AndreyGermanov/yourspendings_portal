@@ -9,7 +9,7 @@ data class PurchaseUser(
 
         @Id
         @Column(name="id")
-        val id:String,
+        val uid:String,
 
         @Column(name="email")
         val email:String,

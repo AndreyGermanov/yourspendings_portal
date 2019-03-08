@@ -51,7 +51,7 @@ class SpringDataRestConfig : RepositoryRestConfigurerAdapter() {
         }
         config.exposeIdsFor(User::class.java,Shop::class.java,Purchase::class.java,Discount::class.java,PurchaseDiscount::class.java)
         config.setRepositoryDetectionStrategy {
-            entities.add(hashMapOf("entity" to it.domainType,"interface" to it.repositoryInterface))
+                entities.add(hashMapOf("entity" to it.domainType, "interface" to it.repositoryInterface))
             true
         }
         config.corsRegistry.addMapping("/api/**")
