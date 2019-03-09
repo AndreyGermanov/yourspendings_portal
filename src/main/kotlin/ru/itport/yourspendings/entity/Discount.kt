@@ -1,5 +1,6 @@
 package ru.itport.yourspendings.entity
 
+import com.fasterxml.jackson.annotation.JsonBackReference
 import javax.persistence.*
 
 @Entity
@@ -15,5 +16,6 @@ data class Discount (
     val name:String,
 
     @OneToMany(mappedBy="discount")
+    @JsonBackReference(value="purchase-discount")
     var purchaseDiscounts:List<PurchaseDiscount>? = null
 )

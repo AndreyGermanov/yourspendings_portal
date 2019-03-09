@@ -16,11 +16,11 @@ class ProductCategoriesController:EntityController<ProductCategory>("ProductCate
                       @RequestParam("limit") limit:Int?,
                       @RequestParam("skip") skip:Int?,
                       @RequestParam("order") order:String?): Any {
-        val list:ArrayList<ProductCategory> = super.list(filterFields, filterValue, limit, skip, order) as ArrayList<ProductCategory>
-        return list.map {
-            var parentList = getParentListl(it)
+        val list:ArrayList<ProductCategory> = super.list(filterFields, filterValue, 0, 0, order) as ArrayList<ProductCategory>
+        val result = list.map {
+            var parentList = getParentList(it).reversed()
             var fullId = if (parentList.size>0) parentList.joinToString("/")+"/"+it.uid else it.uid.toString()
-            parentList.reverse()
+            //parentList.reverse()
             hashMapOf(
                 "uid" to it.uid,
                 "name" to it.name,
@@ -36,9 +36,12 @@ class ProductCategoriesController:EntityController<ProductCategory>("ProductCate
                 remove("fullId")
             }
         }
+        val skip = skip ?: 0
+        val limit = limit ?: result.size
+        return result.subList(skip, if (skip+limit>result.size) result.size; else skip+limit)
     }
 
-    private fun getParentListl(item:ProductCategory):ArrayList<Long> {
+    private fun getParentList(item:ProductCategory):ArrayList<Long> {
         var parent = item.parent
         var result = ArrayList<Long>()
         if (parent == null) return result;

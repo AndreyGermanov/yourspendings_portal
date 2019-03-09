@@ -20,7 +20,7 @@ class ProductCategory (
     var parent:ProductCategory?=null,
 
     @OneToMany(mappedBy="parent")
-    @JsonBackReference
+    @JsonBackReference(value="category-subcategory")
     var subCategories: List<ProductCategory>? = null,
 
     @OneToMany(mappedBy="category")

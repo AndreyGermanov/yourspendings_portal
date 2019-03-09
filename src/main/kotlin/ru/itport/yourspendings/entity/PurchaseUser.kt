@@ -1,5 +1,6 @@
 package ru.itport.yourspendings.entity
 
+import com.fasterxml.jackson.annotation.JsonBackReference
 import java.util.*
 import javax.persistence.*
 
@@ -27,9 +28,11 @@ data class PurchaseUser(
         override val updatedAt: Date,
 
         @OneToMany(mappedBy="user")
+        @JsonBackReference
         val shops: List<Shop>? = null,
 
         @OneToMany(mappedBy="user")
+        @JsonBackReference(value="user-purchase")
         var purchases: List<Purchase>? = null
 
 ): YModel(updatedAt) {

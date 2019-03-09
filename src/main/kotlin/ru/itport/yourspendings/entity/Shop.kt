@@ -1,5 +1,6 @@
 package ru.itport.yourspendings.entity
 
+import com.fasterxml.jackson.annotation.JsonBackReference
 import org.springframework.validation.annotation.Validated
 import java.util.*
 import javax.persistence.*
@@ -28,6 +29,7 @@ data class Shop (
         override val updatedAt: Date,
 
         @OneToMany(mappedBy="place")
+        @JsonBackReference(value="shop-purchase")
         var purchases:List<Purchase>? = null,
 
         @ManyToOne
