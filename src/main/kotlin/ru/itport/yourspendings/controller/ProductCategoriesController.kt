@@ -1,5 +1,6 @@
 package ru.itport.yourspendings.controller
 
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -11,15 +12,10 @@ class ProductCategoriesController:EntityController<ProductCategory>("ProductCate
 
     override fun getItemId(id:Any):Any = id.toString().toLongOrNull() ?: 0
 
-    override fun list(@RequestParam("filter_fields") filterFields:ArrayList<String>?,
-                      @RequestParam("filter_value") filterValue:String?,
-                      @RequestParam("limit") limit:Int?,
-                      @RequestParam("skip") skip:Int?,
-                      @RequestParam("order") order:String?): Any {
-        val list:ArrayList<ProductCategory> = super.list(filterFields, filterValue, 0, 0, order) as ArrayList<ProductCategory>
-        val result = list.map {
+    override fun list(@RequestBody body:Any?): Any {
+        val result = (super.list(parseListRequest(body).apply { skip=0;limit=0;}) as ArrayList<ProductCategory>).map {
             var parentList = getParentList(it).reversed()
-            var fullId = if (parentList.size>0) parentList.joinToString("/")+"/"+it.uid else it.uid.toString()
+            var fullId = if (parentList.isNotEmpty()) parentList.joinToString("/")+"/"+it.uid else it.uid.toString()
             //parentList.reverse()
             hashMapOf(
                 "uid" to it.uid,
@@ -36,9 +32,8 @@ class ProductCategoriesController:EntityController<ProductCategory>("ProductCate
                 remove("fullId")
             }
         }
-        val skip = skip ?: 0
-        val limit = limit ?: result.size
-        return result.subList(skip, if (skip+limit>result.size) result.size; else skip+limit)
+        val req = parseListRequest(body).apply { if (limit!! <=0 ) limit = result.size}
+        return result.subList(req.skip!!, if (req.skip!!+req.limit!!>result.size) result.size; else req.skip!!+req.limit!!)
     }
 
     private fun getParentList(item:ProductCategory):ArrayList<Long> {

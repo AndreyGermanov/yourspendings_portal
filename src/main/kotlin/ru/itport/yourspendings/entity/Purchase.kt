@@ -1,6 +1,6 @@
 package ru.itport.yourspendings.entity
 
-import org.springframework.data.rest.core.config.Projection
+import com.fasterxml.jackson.annotation.JsonBackReference
 import java.util.*
 import javax.persistence.*
 
@@ -23,6 +23,7 @@ data class Purchase(
     var place: Shop? = null,
 
     @OneToMany(mappedBy="purchase")
+    @JsonBackReference(value="purchase-image")
     var images:List<PurchaseImage>? = null,
 
     @ManyToOne
@@ -30,21 +31,11 @@ data class Purchase(
     val user:PurchaseUser,
 
     @OneToMany(mappedBy="purchase")
+    @JsonBackReference(value="purchase-discount")
     var purchaseDiscounts:List<PurchaseDiscount>? = null,
 
     @OneToMany(mappedBy="purchase")
+    @JsonBackReference(value="purchase-product")
     var products:List<PurchaseProduct>? = null
 
 ): YModel(updatedAt)
-
-@Projection(name="fullPurchase",types=[Purchase::class])
-public interface fullPurchase {
-    val id:String
-    val date: Date
-    val updatedAt:Date
-    val place: Shop
-    val images: List<PurchaseImage>
-    val purchaseDiscounts: List<PurchaseDiscount>
-    val user:PurchaseUser
-
-}

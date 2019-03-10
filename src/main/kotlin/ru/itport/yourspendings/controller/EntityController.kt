@@ -1,42 +1,34 @@
 package ru.itport.yourspendings.controller
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.*
 import javax.persistence.EntityManager
 import javax.transaction.Transactional
 
+@Suppress("UNCHECKED_CAST")
 abstract class EntityController<T>(val entityName:String) {
 
     @Autowired
     lateinit var entityManager: EntityManager
 
-    @GetMapping("/count")
-    open fun count(
-        @RequestParam("filter_fields") filterFields:ArrayList<String>?,
-        @RequestParam("filter_value") filterValue:String?):Int {
-        var sql = "SELECT count(u) FROM $entityName u"
-        if (filterFields != null) sql += " WHERE " + filterFields.map {"$it LIKE '$filterValue%'"}.joinToString(" OR ")
-        return entityManager.createQuery(sql).resultList[0].toString().toIntOrNull() ?: 0
-    }
+    @PostMapping("/count")
+    open fun count(@RequestBody body:Any = HashMap<String,Any>()):Int = entityManager.createQuery(
+            StringBuilder("SELECT count(u) FROM $entityName u").apply {
+                parseListRequest(body).also {this.append(createWhereClause(it))}
+            }.toString()
+        ).resultList[0].toString().toIntOrNull() ?: 0
 
-    @GetMapping("/list")
-    open fun list(
-            @RequestParam("filter_fields") filterFields:ArrayList<String>?,
-            @RequestParam("filter_value") filterValue:String?,
-            @RequestParam("limit") limit:Int?,
-            @RequestParam("skip") skip:Int?,
-            @RequestParam("order") order:String?):Any {
-        var sql = "SELECT u FROM $entityName u"
-        if (filterFields != null && filterFields.size>0)
-            sql += " WHERE " + filterFields.map {"$it LIKE '$filterValue%'"}.joinToString(" OR ")
-        if (order != null) sql += " ORDER BY $order"
-        val query = entityManager.createQuery(sql)
-        if (skip != null && skip>0) query.firstResult = skip
-        if (limit != null && limit>0) query.maxResults = limit
-        return query.resultList.map { postProcessListItem(it as T) }
+    @PostMapping("/list")
+    open fun list(@RequestBody body:Any? = HashMap<String,Any>()):Any {
+        val req = parseListRequest(body)
+        return entityManager.createQuery(
+            StringBuilder("SELECT u FROM $entityName u").apply {
+                this.append("${createWhereClause(req)} ${createOrderClause(req)}")
+            }.toString()
+        ).apply {
+            if (req.skip != null && req.skip!!>0) this.firstResult = req.skip!!
+            if (req.limit != null && req.limit!!>0) this.maxResults = req.limit!!
+        }.resultList.map { postProcessListItem(it as T) }
     }
 
     open fun postProcessListItem(item:T):T = item
@@ -58,4 +50,49 @@ abstract class EntityController<T>(val entityName:String) {
 
     abstract fun getItemId(id:Any):Any
 
+    fun parseListRequest(body:Any?):ListRequest {
+        if (body is ListRequest) return body
+        return (body as? HashMap<String,Any>)?.let {
+            ListRequest().apply {
+                filterFields = it["filter_fields"].toString().split(",") as? ArrayList<String> ?: ArrayList()
+                filterValue = it["filter_value"]?.toString() ?: ""
+                condition = it["condition"]?.toString() ?: ""
+                limit = it["limit"]?.toString()?.toIntOrNull() ?: 0
+                skip = it["skip"]?.toString()?.toIntOrNull() ?: 0
+                order = it["order"]?.toString()
+            }
+        } ?: ListRequest()
+    }
+
+    private fun createWhereClause(req:ListRequest):String =
+        StringBuilder("").apply {
+            var conditionClause = ""
+            if (req.condition !== null && req.condition!!.isNotEmpty()) conditionClause = req.condition!!
+            if (req.filterFields != null && req.filterFields!!.size>0) {
+                if (conditionClause.isNotEmpty()) conditionClause += " AND "
+                req.filterFields?.let {
+                    if (it.isNotEmpty())
+                        conditionClause += "("+ it.joinToString(" OR ") {
+                            "${getFieldPresentationForList(it)} LIKE '${req.filterValue}%'"} +")"
+                }
+            }
+            if (conditionClause.isNotEmpty()) this.append(" WHERE $conditionClause")
+        }.toString()
+
+    private fun createOrderClause(req:ListRequest):String {
+        if (req.order == null || req.order!!.isEmpty() || req.order!!.split(" ").size != 2) return ""
+        val parts = req.order!!.split(" ")
+        return " ORDER BY ${getFieldPresentationForList(parts[0])} ${parts[1]}"
+    }
+
+    open fun getFieldPresentationForList(fieldName:String) = fieldName
 }
+
+data class ListRequest(
+        var filterFields:ArrayList<String>?=ArrayList(),
+        var filterValue:String?="",
+        var condition:String?="",
+        var limit:Int?=0,
+        var skip:Int?=0,
+        var order:String?=""
+)
