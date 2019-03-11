@@ -4,7 +4,7 @@ import javax.persistence.*
 
 @Entity
 @Table(name="dimension_units")
-class DimensionUnit (
+data class DimensionUnit (
 
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)

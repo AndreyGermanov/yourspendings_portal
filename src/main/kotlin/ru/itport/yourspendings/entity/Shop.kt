@@ -36,4 +36,4 @@ data class Shop (
         @JoinColumn(name="user_id")
         val user: PurchaseUser
 
-): YModel(updatedAt)
+): YModel()

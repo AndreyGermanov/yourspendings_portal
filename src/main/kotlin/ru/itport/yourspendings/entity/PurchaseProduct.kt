@@ -4,12 +4,12 @@ import javax.persistence.*
 
 @Entity
 @Table(name="purchase_products")
-class PurchaseProduct (
+data class PurchaseProduct (
 
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     @Column(name="id")
-    var uid:Long? = null,
+    var uid:Int? = null,
 
     @Column(name="name")
     val name:String,

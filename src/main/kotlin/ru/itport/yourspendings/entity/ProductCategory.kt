@@ -5,25 +5,26 @@ import javax.persistence.*
 
 @Entity
 @Table(name="product_categories")
-class ProductCategory (
+data class ProductCategory (
 
     @Id
-    @GeneratedValue(strategy= GenerationType.IDENTITY)
-    @Column(name="id")
-    var uid:Long? = null,
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    var uid: Long? = null,
 
-    @Column(name="name")
-    val name:String,
+    @Column(name = "name")
+    var name: String,
 
     @ManyToOne
-    @JoinColumn(name="parent_id")
-    var parent:ProductCategory?=null,
+    @JoinColumn(name = "parent_id")
+    var parent: ProductCategory? = null,
 
-    @OneToMany(mappedBy="parent")
-    @JsonBackReference(value="category-subcategory")
+    @OneToMany(mappedBy = "parent")
+    @JsonBackReference(value = "category-subcategory")
     var subCategories: List<ProductCategory>? = null,
 
-    @OneToMany(mappedBy="category")
+    @OneToMany(mappedBy = "category")
+    @JsonBackReference(value = "category-product")
     var products: List<PurchaseProduct>? = null
 
 )
