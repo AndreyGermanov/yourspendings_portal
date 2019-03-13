@@ -5,7 +5,7 @@ import javax.persistence.*
 
 @Entity
 @Table(name="roles")
-class Role (
+data class Role (
 
     @Id
     @Column(name="id")
@@ -22,4 +22,4 @@ class Role (
     @JoinTable(name="users_roles", joinColumns = [JoinColumn(name="role_id")], inverseJoinColumns = [JoinColumn(name="user_id")])
     @JsonBackReference
     var users:List<User>?=null
-)
+):BaseModel()

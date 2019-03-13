@@ -17,4 +17,4 @@ data class PurchaseImage (
     @JoinColumn(name="purchase_id")
     val purchase:Purchase
 
-)
+):BaseModel()

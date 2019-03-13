@@ -36,9 +36,9 @@ class ProductCategoriesController:EntityController<ProductCategory>("ProductCate
         return result.subList(req.skip!!, if (req.skip!!+req.limit!!>result.size) result.size; else req.skip!!+req.limit!!)
     }
 
-    private fun getParentList(item:ProductCategory):ArrayList<Long> {
+    private fun getParentList(item:ProductCategory):ArrayList<Int> {
         var parent = item.parent
-        var result = ArrayList<Long>()
+        var result = ArrayList<Int>()
         if (parent == null) return result;
         while (parent != null) {
             result.add(parent.uid!!)

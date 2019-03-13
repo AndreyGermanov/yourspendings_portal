@@ -35,5 +35,5 @@ data class PurchaseUser(
         @JsonBackReference(value="user-purchase")
         var purchases: List<Purchase>? = null
 
-): YModel(updatedAt) {
+): YModel() {
 }

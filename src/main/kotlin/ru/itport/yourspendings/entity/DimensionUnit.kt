@@ -13,4 +13,4 @@ data class DimensionUnit (
 
     @Column(name="name")
     val name:String
-)
+):BaseModel()

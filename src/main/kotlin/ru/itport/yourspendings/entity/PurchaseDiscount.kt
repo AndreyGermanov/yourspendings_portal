@@ -21,4 +21,4 @@ data class PurchaseDiscount(
     @ManyToOne
     @JoinColumn(name="discount_id")
     val discount: Discount
-)
+):BaseModel()

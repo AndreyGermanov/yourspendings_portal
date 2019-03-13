@@ -25,4 +25,4 @@ data class User (
     @JoinTable(name="users_roles", joinColumns=[JoinColumn(name="user_id")], inverseJoinColumns = [JoinColumn(name="role_id")])
     var roles:List<Role>? = null
 
-)
+):BaseModel()

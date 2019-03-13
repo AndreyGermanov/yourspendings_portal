@@ -6,14 +6,14 @@ import javax.persistence.*
 
 @Entity
 @Table(name="purchases")
-data class Purchase (
+data class Purchase(
 
     @Id
     @Column(name = "id")
     var uid: String,
 
     @Column(name = "date")
-    var date: Date?,
+    var date: Date,
 
     @Column(name = "updated_at")
     override val updatedAt: Date? = null,
@@ -30,13 +30,13 @@ data class Purchase (
     @JoinColumn(name = "user_id")
     val user: PurchaseUser? = null,
 
-    @OneToMany(mappedBy = "purchase")
+    @OneToMany(mappedBy = "purchase", cascade = [CascadeType.ALL])
     @JsonBackReference(value = "purchase-discount")
     var purchaseDiscounts: List<PurchaseDiscount>? = null,
 
-    @OneToMany(mappedBy = "purchase")
+    @OneToMany(mappedBy = "purchase", cascade = [CascadeType.ALL])
     @JsonBackReference(value = "purchase-product")
     var products: List<PurchaseProduct>? = null
 
-):YModel(updatedAt)
+):YModel()
 

@@ -9,13 +9,13 @@ data class Discount (
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name="id")
-    val uid:Int?=0,
+    @Column(name = "id")
+    var uid: Int? = 0,
 
-    @Column(name="name")
-    val name:String,
+    @Column(name = "name")
+    public var name: String,
 
-    @OneToMany(mappedBy="discount")
-    @JsonBackReference(value="purchase-discount")
-    var purchaseDiscounts:List<PurchaseDiscount>? = null
-)
+    @OneToMany(mappedBy = "discount")
+    @JsonBackReference(value = "purchase-discount")
+    var purchaseDiscounts: List<PurchaseDiscount>? = null
+):BaseModel()

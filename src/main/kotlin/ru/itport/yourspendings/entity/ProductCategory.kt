@@ -10,7 +10,7 @@ data class ProductCategory (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
-    var uid: Long? = null,
+    var uid: Int? = null,
 
     @Column(name = "name")
     var name: String,
@@ -27,4 +27,4 @@ data class ProductCategory (
     @JsonBackReference(value = "category-product")
     var products: List<PurchaseProduct>? = null
 
-)
+):BaseModel()
