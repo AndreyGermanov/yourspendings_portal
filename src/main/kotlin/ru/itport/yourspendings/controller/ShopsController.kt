@@ -8,4 +8,9 @@ import ru.itport.yourspendings.entity.Shop
 @RequestMapping("/api/shop")
 class ShopsController:EntityController<Shop>("Shop") {
     override fun getItemId(id: Any): Any = id.toString()
+
+    override fun getFieldPresentationForList(fieldName:String) = when(fieldName) {
+        "user" -> "user.email"
+        else -> fieldName
+    }
 }

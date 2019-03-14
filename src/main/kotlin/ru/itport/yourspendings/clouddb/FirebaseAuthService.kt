@@ -11,10 +11,9 @@ class FirebaseAuthService(firebaseApp: FirebaseApplication,env: Environment) {
     lateinit var auth:FirebaseAuth
 
     init {
-        if (!env.activeProfiles.contains("development")) {
+
             firebaseApp.initialize()
             auth = FirebaseAuth.getInstance()
-        }
     }
 
     fun list(timestamp:Long): List<MutableMap<String,Any>> = auth.listUsers(null).values.map {

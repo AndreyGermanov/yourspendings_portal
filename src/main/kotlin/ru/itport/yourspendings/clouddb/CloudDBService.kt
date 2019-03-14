@@ -1,7 +1,5 @@
 package ru.itport.yourspendings.clouddb
 
 interface CloudDBService {
-    fun syncData()
-    fun startDataSync()
-    fun stopDataSync()
+    fun getLastData(collection:String,timestamp:Long):List<MutableMap<String,Any>>
 }
