@@ -71,7 +71,10 @@ abstract class EntityController<T>(val entityName:String) {
         if (body is ListRequest) return body
         return (body as? HashMap<String,Any>)?.let {
             ListRequest().apply {
-                filterFields = it["filter_fields"].toString().split(",") as? ArrayList<String> ?: ArrayList()
+                filterFields = it["filter_fields"].toString().split(",") as? ArrayList<String>
+                        ?: ArrayList<String>().apply {
+                    if (it["filter_fields"] != null) add(it["filter_fields"].toString())
+                }
                 filterValue = it["filter_value"]?.toString() ?: ""
                 condition = it["condition"]?.toString() ?: ""
                 limit = it["limit"]?.toString()?.toIntOrNull() ?: 0
