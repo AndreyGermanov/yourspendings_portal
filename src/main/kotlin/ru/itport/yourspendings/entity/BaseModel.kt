@@ -1,6 +1,5 @@
 package ru.itport.yourspendings.entity
 
-import org.springframework.beans.factory.annotation.Autowired
 import java.lang.reflect.Field
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -50,7 +49,6 @@ open  class BaseModel {
             } else if (relationType.annotationClass.simpleName == "OneToMany") {
                 val typeName = field.genericType.typeName.split("<").last().split(">").first()
                 (entity.javaClass.getDeclaredField(field.name).apply { isAccessible = true }.get(entity) as? List<*>)?.let {
-
                     it.forEach { entityManager.remove(it) }
                 }
                 (value as List<*>).map {
