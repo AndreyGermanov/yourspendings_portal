@@ -33,6 +33,7 @@ open  class BaseModel {
             return getRelationFieldValue(field,value,entity) ?: when (type.name) {
                 "java.lang.String" -> value.toString()
                 "java.lang.Integer" -> value.toString().toIntOrNull() ?: 0
+                "int" -> value.toString().toIntOrNull() ?: 0
                 "java.lang.Long" -> value.toString().toLongOrNull() ?: 0
                 "double" -> value.toString().toDoubleOrNull() ?: 0
                 "boolean" -> value.toString() == "1" || value.toString().toBoolean()
