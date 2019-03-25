@@ -121,34 +121,96 @@ class ReportsController:EntityController<Report>("Report") {
                     resultReport.add(resultRow)
                 }
             }
-            if (request.format.groups.size>0)
-                resultReport = processGroup(0,request.format.groups[0],resultReport)
+            if (request.format.groups.size>0) {
+                resultReport = processGroup(0, request.format, resultReport)!!
+                resultReport = applyAggregates(request.format, resultReport)
+            }
             result.add(resultReport)
         }
         return result
     }
 
-    fun processGroup(level:Int,groupConfig:GroupFormat,items:ArrayList<Any>):ArrayList<Any> {
-        if (!groupConfig.isHierarchy) return items
+    fun processGroup(level:Int,format:ReportRequestOutputFormat,items:ArrayList<Any>?):ArrayList<Any> {
+        val groupConfig = format.groups[level]
+        if (items == null || groupConfig==null || !groupConfig.isHierarchy) return items ?: ArrayList()
         val result = ArrayList<Any>()
         var groups = HashMap<Int,Any>()
-        items.forEach{
+        items.forEach {
             val row = it as ArrayList<Any>
             val parentList = getGroupParentList(row[groupConfig.hierarchyIdField].toString().toInt(),
-                    groupConfig.hierarchyModelName,groupConfig.hierarchyNameField)
+                    groupConfig.hierarchyModelName, groupConfig.hierarchyNameField)
+            parentList.add(hashMapOf("id" to row[groupConfig.hierarchyIdField].toString().toInt(),
+                    "name" to row[format.groups[level].fieldIndex],
+                    "parent" to parentList[parentList.size-1]["id"].toString().toIntOrNull()) as HashMap<String,Any>)
+            var groupRow = ArrayList<Any>()
             parentList.forEach {
-                var groupRow = row
-                groupRow[groupConfig.fieldIndex] = it["name"].toString()
-                groupRow[groupRow.size-1] = ArrayList<Any>()
-                if (!groups.containsKey(it["id"].toString().toInt()))
-                    groups[it["id"].toString().toInt()] = groupRow
-                else
-                    groupRow = groups[it["id"].toString().toInt()] as ArrayList<Any>
-
+                val parent = groups[it["parent"]?.toString()?.toIntOrNull() ?: 0] as? HashMap<String,Any>
+                if (!groups.containsKey(it["id"].toString().toInt())) {
+                    groupRow = ArrayList()
+                    format.columns.forEach { groupRow.add("") }
+                    if (parent != null) {
+                        format.groups.forEach {
+                            groupRow[it.fieldIndex] = (parent["data"] as ArrayList<Any>)[it.fieldIndex]
+                        }
+                        ((parent["data"] as ArrayList<Any>)[format.columns.size + 1] as ArrayList<Any>).add(groupRow)
+                    } else {
+                        result.add(groupRow)
+                    }
+                    groupRow[groupConfig.fieldIndex] = it["name"].toString()
+                    groupRow.add(row[format.columns.size])
+                    groupRow.add(ArrayList<Any>())
+                    groups[it["id"].toString().toInt()] = hashMapOf("parent" to parent, "data" to groupRow)
+                } else {
+                    groupRow = (groups[it["id"].toString().toInt()] as HashMap<String,Any>)["data"] as ArrayList<Any>
+                }
+                format.columns.forEachIndexed {index,column ->
+                    if (column.groupFunction != null) {
+                        var value = convertFieldValue(format.columns[index],row[index])
+                        var currentValue = convertFieldValue(format.columns[index],groupRow[index])
+                        var currentValueDbl = currentValue.toString().toDoubleOrNull() ?: 0.0
+                        var valueDbl = value.toString().toDouble()
+                        currentValue = when (column.groupFunction) {
+                            GroupFunction.avg -> {
+                                (currentValue as? ArrayList<Any> ?: ArrayList()).apply { add(valueDbl) }
+                                //if (currentValueDbl>0) (valueDbl+currentValueDbl)/2 else valueDbl
+                            }
+                            GroupFunction.max -> if (valueDbl>currentValueDbl) valueDbl else currentValue
+                            GroupFunction.min -> if (valueDbl<currentValueDbl) valueDbl else currentValue
+                            GroupFunction.sum -> currentValueDbl+valueDbl
+                            GroupFunction.first -> currentValue ?: valueDbl
+                            GroupFunction.last -> valueDbl
+                            else -> valueDbl
+                        }
+                        groupRow[index] = if (column.groupFunction != GroupFunction.avg) convertFieldValue(format.columns[index],
+                                currentValue.toString().toDoubleOrNull() ?: 0.0)!!
+                        else currentValue!!
+                    }
+                }
             }
+            row[format.columns.size + 1] = processGroup(level+1,format,row[format.columns.size + 1] as? ArrayList<Any>)
+            (groupRow[format.columns.size + 1] as ArrayList<Any>).addAll(row[format.columns.size + 1] as ArrayList<Any>)
         }
-        return items
+        return result
+    }
 
+    fun applyAggregates(format:ReportRequestOutputFormat,items:ArrayList<Any>?):ArrayList<Any> {
+        val items = items ?: return ArrayList()
+        return items.map {item ->
+            val item = item as ArrayList<Any>
+            format.columns.forEachIndexed { index,column ->
+                if (column.groupFunction == GroupFunction.avg) {
+                    var list = (item[index] as? ArrayList<Any> ?: ArrayList())
+                    var value = 0.0
+                    if (list.size>0)
+                        value = list.map {it.toString().toDoubleOrNull() ?: 0.0}.reduce { acc, d -> acc+d } / list.size
+                    item[index] = convertFieldValue(column,value)!!
+                    if (item.size>format.columns.size+1) {
+                        item[format.columns.size+1] = applyAggregates(format, item[format.columns.size+1] as? ArrayList<Any>)
+                    }
+                }
+            }
+            item
+        } as ArrayList<Any>
     }
 
     fun getGroupParentList(id:Int,modelName:String,nameField:String):ArrayList<HashMap<String,Any>> {
@@ -162,11 +224,16 @@ class ReportsController:EntityController<Report>("Report") {
             var textField = parent.javaClass.getDeclaredField(nameField)
             uidField.isAccessible = true
             textField.isAccessible = true
-            result.add(hashMapOf("id" to uidField.get(parent),
-                    "name" to textField.get(parent)));
             var field = parent.javaClass.getDeclaredField("parent")
             field?.isAccessible = true
+            var resultRow = hashMapOf("id" to uidField.get(parent), "name" to textField.get(parent))
             parent = field?.get(parent)
+            if (parent != null) {
+                var parentUidField = parent.javaClass.getDeclaredField("uid")
+                parentUidField.isAccessible = true
+                resultRow["parent"] = parentUidField.get(parent)
+            }
+            result.add(resultRow)
         }
         result.reverse()
         return result
@@ -215,12 +282,13 @@ class ReportsController:EntityController<Report>("Report") {
                         this.hierarchyNameField = options["nameField"]?.toString() ?: ""
                         this.hierarchyModelName = options["entity"]?.toString() ?: ""
                     }
-                }.also { println(it)}
+                }
             }
         }
     }
 
     fun convertFieldValue(format:ReportRequestColumnFormat,value:Any?):Any? {
+        if (value is ArrayList<*>) return value
         return when (format.type) {
             "decimal" -> convertDecimalValue(format,value)
             "integer" -> value.toString().toIntOrNull() ?: 0
