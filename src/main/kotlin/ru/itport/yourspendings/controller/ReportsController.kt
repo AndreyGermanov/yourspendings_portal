@@ -15,7 +15,6 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.*
-import kotlin.math.roundToInt
 
 @RestController
 @RequestMapping("/api/report")
@@ -63,7 +62,7 @@ class ReportsController:EntityController<Report>("Report") {
                 }
             }.resultList.forEach {
                 val resultRow = ArrayList<Any?>()
-                val row = it as Array<Any>
+                val row = (it as Array<Any>).map {it} as ArrayList<Any>
                 if (request.format.groups.isNotEmpty()) {
                     request.format.groups.forEachIndexed { groupFieldIndex,groupFormat ->
                         val groupFieldValue = groupFormat.fieldIndex
@@ -99,23 +98,7 @@ class ReportsController:EntityController<Report>("Report") {
                     if (column.groupFunction !== null) {
                         currentGroups.forEach {
                             val groupRow = it["row"] as ArrayList<Any>
-                            var currentValue = convertFieldValue(request.format.columns[index],groupRow[index])
-                            val currentValueDbl = currentValue.toString().toDoubleOrNull() ?: 0.0
-                            val valueDbl = value.toString().toDouble()
-                            currentValue = when (column.groupFunction) {
-                                GroupFunction.avg -> {
-                                    (currentValue as? ArrayList<Any> ?: ArrayList()).apply { add(valueDbl) }
-                                }
-                                GroupFunction.max -> if (valueDbl>currentValueDbl) valueDbl else currentValue
-                                GroupFunction.min -> if (valueDbl<currentValueDbl) valueDbl else currentValue
-                                GroupFunction.sum -> currentValueDbl+valueDbl
-                                GroupFunction.first -> currentValue ?: valueDbl
-                                GroupFunction.last -> valueDbl
-                                else -> valueDbl
-                            }
-                            groupRow[index] = if (column.groupFunction != GroupFunction.avg) convertFieldValue(request.format.columns[index],
-                                    currentValue.toString().toDoubleOrNull() ?: 0.0)!!
-                            else currentValue!!
+                            groupRow[index] = applyAggregateToColumn(request.format,groupRow,index,value!!)
                         }
                     }
                 }
@@ -130,12 +113,56 @@ class ReportsController:EntityController<Report>("Report") {
             if (request.format.groups.isNotEmpty()) {
                 resultReport = processGroup(0, request.format, resultReport)
                 resultReport = applyAggregates(request.format, resultReport)
-                if (request.format.sortOrder.size>0) sortList(request.format,resultReport)
-                resultReport = toFlatList(request.format,resultReport)
+                if (request.format.sortOrder.isNotEmpty()) sortList(request.format,resultReport)
             }
+            if (request.format.totals.display) {
+                var totalsRow = ArrayList<Any>().apply {
+                    request.format.columns.forEach {
+                        add("")
+                    }
+                    add(hashMapOf("totalsRow" to true,"groupLevel" to 0))
+                }
+                resultReport.forEach {
+                    val row = it as ArrayList<Any>
+                    totalsRow = applyAggregatesToRow(request.format,totalsRow,row)
+                }
+                totalsRow = applyAggregates(request.format,arrayListOf(totalsRow)).first() as ArrayList<Any>
+                resultReport.add(totalsRow)
+            }
+            resultReport = toFlatList(request.format,resultReport)
             result.add(resultReport)
         }
         return result
+    }
+
+    fun applyAggregateToColumn(format:ReportRequestOutputFormat,groupRow:ArrayList<Any>,index:Int,value:Any):Any {
+        val column = format.columns[index]
+        if (column.groupFunction != null) {
+            val value = convertFieldValue(format.columns[index],value)
+            var currentValue = convertFieldValue(format.columns[index],groupRow[index])
+            val currentValueDbl = currentValue.toString().toDoubleOrNull() ?: 0.0
+            val valueDbl = value.toString().toDoubleOrNull() ?: 0.0
+            currentValue = when (column.groupFunction) {
+                GroupFunction.avg -> {
+                    (currentValue as? ArrayList<Any> ?: ArrayList()).apply {
+                        if (value is ArrayList<*>)
+                            add(calcAverage(value as ArrayList<Any>))
+                        else
+                            add(value!!)
+                    }
+                }
+                GroupFunction.max -> if (valueDbl>currentValueDbl) valueDbl else currentValue
+                GroupFunction.min -> if (valueDbl<currentValueDbl) valueDbl else currentValue
+                GroupFunction.sum -> currentValueDbl+valueDbl
+                GroupFunction.first -> currentValue ?: valueDbl
+                GroupFunction.last -> valueDbl
+                else -> valueDbl
+            }
+            groupRow[index] = if (column.groupFunction != GroupFunction.avg) convertFieldValue(format.columns[index],
+                    currentValue.toString().toDoubleOrNull() ?: 0.0)!!
+            else currentValue!!
+        }
+        return groupRow[index]
     }
 
     fun processGroup(level:Int,format:ReportRequestOutputFormat,items:ArrayList<Any>?):ArrayList<Any> {
@@ -145,13 +172,14 @@ class ReportsController:EntityController<Report>("Report") {
         val groups = HashMap<Int,Any>()
         items.forEach {
             val row = it as ArrayList<Any>
-            val parentList = getGroupParentList(row[groupConfig.hierarchyIdField].toString().toInt(),
+            var parentList = ArrayList<HashMap<String,Any>>()
+            parentList= getGroupParentList(row[groupConfig.hierarchyIdField].toString().toInt(),
                     groupConfig.hierarchyModelName, groupConfig.hierarchyNameField)
             parentList.add(hashMapOf("id" to row[groupConfig.hierarchyIdField].toString().toInt(),
                     "name" to row[format.groups[level].fieldIndex],
-                    "parent" to parentList[parentList.size-1]["id"].toString().toIntOrNull()) as HashMap<String,Any>)
+                    "parent" to parentList[parentList.size - 1]["id"].toString().toIntOrNull()) as HashMap<String, Any>)
             var groupRow = ArrayList<Any>()
-            parentList.forEach {
+            parentList.forEachIndexed { hIndex,it ->
                 val parent = groups[it["parent"]?.toString()?.toIntOrNull() ?: 0] as? HashMap<String,Any>
                 if (!groups.containsKey(it["id"].toString().toInt())) {
                     groupRow = ArrayList()
@@ -165,39 +193,26 @@ class ReportsController:EntityController<Report>("Report") {
                         result.add(groupRow)
                     }
                     groupRow[groupConfig.fieldIndex] = it["name"].toString()
-                    groupRow.add(row[format.columns.size])
+                    groupRow.add((row[format.columns.size] as HashMap<String,Any>).clone())
                     groupRow.add(ArrayList<Any>())
                     groups[it["id"].toString().toInt()] = hashMapOf("parent" to parent, "data" to groupRow)
                 } else {
                     groupRow = (groups[it["id"].toString().toInt()] as HashMap<String,Any>)["data"] as ArrayList<Any>
                 }
-                format.columns.forEachIndexed {index,column ->
-                    if (column.groupFunction != null) {
-                        val value = convertFieldValue(format.columns[index],row[index])
-                        var currentValue = convertFieldValue(format.columns[index],groupRow[index])
-                        val currentValueDbl = currentValue.toString().toDoubleOrNull() ?: 0.0
-                        val valueDbl = value.toString().toDoubleOrNull() ?: 0.0
-                        currentValue = when (column.groupFunction) {
-                            GroupFunction.avg -> {
-                                (currentValue as? ArrayList<Any> ?: ArrayList()).apply { add(calcAverage(value as ArrayList<Any>)) }
-                            }
-                            GroupFunction.max -> if (valueDbl>currentValueDbl) valueDbl else currentValue
-                            GroupFunction.min -> if (valueDbl<currentValueDbl) valueDbl else currentValue
-                            GroupFunction.sum -> currentValueDbl+valueDbl
-                            GroupFunction.first -> currentValue ?: valueDbl
-                            GroupFunction.last -> valueDbl
-                            else -> valueDbl
-                        }
-                        groupRow[index] = if (column.groupFunction != GroupFunction.avg) convertFieldValue(format.columns[index],
-                                currentValue.toString().toDoubleOrNull() ?: 0.0)!!
-                        else currentValue!!
-                    }
-                }
+                groupRow = applyAggregatesToRow(format,groupRow,row)
+                (groupRow[format.columns.size] as HashMap<String,Any>)["hierarchyLevel"] = hIndex
             }
             row[format.columns.size + 1] = processGroup(level+1,format,row[format.columns.size + 1] as? ArrayList<Any>)
             (groupRow[format.columns.size + 1] as ArrayList<Any>).addAll(row[format.columns.size + 1] as ArrayList<Any>)
         }
         return result
+    }
+
+    fun applyAggregatesToRow(format:ReportRequestOutputFormat,groupRow:ArrayList<Any>,row:ArrayList<Any>):ArrayList<Any> {
+        format.columns.forEachIndexed {index,column ->
+            groupRow[index] = applyAggregateToColumn(format,groupRow,index,row[index])
+        }
+        return groupRow
     }
 
     fun applyAggregates(format:ReportRequestOutputFormat,items:ArrayList<Any>?):ArrayList<Any> {
@@ -222,34 +237,45 @@ class ReportsController:EntityController<Report>("Report") {
         } as ArrayList<Any>
     }
 
-    fun toFlatList(format:ReportRequestOutputFormat,items:ArrayList<Any>):ArrayList<Any> {
+    fun toFlatList(format:ReportRequestOutputFormat,items:ArrayList<Any>,parentRowNumber:Int?=null):ArrayList<Any> {
         val result = ArrayList<Any>()
+        var startingRow = parentRowNumber ?: 0
         items.forEach {
             val item = it as ArrayList<Any>
             result.add(ArrayList<Any>().apply {
-                item.forEachIndexed{ index,it -> if (index<item.size+1) add(it) }
+                item.forEachIndexed{ index,it ->
+                    if (index<format.columns.size + 1) { add(it) }
+                }
+                if (parentRowNumber!=null) {
+                    (this[format.columns.size] as? HashMap<String,Any> ?: HashMap())["parent"] = parentRowNumber-1
+                }
             })
-            var nested:ArrayList<Any>? = null
+            startingRow ++
+            var nested:ArrayList<Any>?
             if (item.size>format.columns.size+1) {
                 nested = item[format.columns.size + 1] as? ArrayList<Any>
-                if (nested != null && nested.size > 0) result.addAll(toFlatList(format, nested))
+                if (nested != null && nested.size > 0) {
+                    val nestedList = toFlatList(format, nested,startingRow)
+                    result.addAll(nestedList)
+                    startingRow += nestedList.size
+                }
             }
         }
         return result
     }
 
     fun sortList(format:ReportRequestOutputFormat,items:ArrayList<Any>) {
-
         items.sortWith(Comparator {item1,item2 ->
-            var value = 0
             format.sortOrder.map {
                 when (it.direction) {
                     SortOrderDirection.asc ->
-                ((item1 as ArrayList<Any>)[it.fieldIndex].toString().toDouble()-
-                        (item2 as ArrayList<Any>)[it.fieldIndex].toString().toDouble()).roundToInt()
+                    compareFieldValues(format.columns[it.fieldIndex],
+                            (item1 as ArrayList<Any>)[it.fieldIndex],
+                            (item2 as ArrayList<Any>)[it.fieldIndex])
                     SortOrderDirection.desc ->
-                        ((item2 as ArrayList<Any>)[it.fieldIndex].toString().toDouble()-
-                        (item1 as ArrayList<Any>)[it.fieldIndex].toString().toDouble()).roundToInt()
+                        compareFieldValues(format.columns[it.fieldIndex],
+                                (item1 as ArrayList<Any>)[it.fieldIndex],
+                                (item2 as ArrayList<Any>)[it.fieldIndex])*-1
                 }
             }.reduce { acc, i ->
                 if (acc==0) i; else acc
@@ -345,6 +371,11 @@ class ReportsController:EntityController<Report>("Report") {
                         else SortOrderDirection.asc
                 )
             }
+            this.totals = TotalsFormat().apply {
+                (format["totals"] as? HashMap<String,Any> ?: HashMap()).also {
+                    this.display = it["display"]?.toString()?.toBoolean() ?: false
+                }
+            }
         }
     }
 
@@ -355,6 +386,15 @@ class ReportsController:EntityController<Report>("Report") {
             "integer" -> value.toString().toIntOrNull() ?: 0
             "date","datetime","time","timestamp" -> convertDateTimeValue(format,value)
             else -> value
+        }
+    }
+
+    fun compareFieldValues(format:ReportRequestColumnFormat,item1:Any,item2:Any):Int {
+        return when (format.type) {
+            "decimal" -> (item1.toString().toDouble().compareTo(item2.toString().toDouble()))
+            "integer" -> (item1.toString().toInt().compareTo(item2.toString().toInt()))
+            "timestamp" -> (item1.toString().toLong().compareTo(item2.toString().toLong()))
+            else -> item1.toString().compareTo(item2.toString())
         }
     }
 
@@ -372,10 +412,10 @@ class ReportsController:EntityController<Report>("Report") {
             return date.toInstant(ZoneOffset.UTC).epochSecond.toString()
         val format = when {
             format.dateFormat.isNotEmpty() -> format.dateFormat
-            format.type == "date" -> "YYYY-MM-DD"
-            format.type == "datetime" -> "YYYY-MM-DD HH:mm:ss"
+            format.type == "date" -> "YYYY-MM-dd"
+            format.type == "datetime" -> "YYYY-MM-dd HH:mm:ss"
             format.type == "time" -> "HH:mm:ss"
-            else -> "YYYY-MM-DD HH:mm:ss"
+            else -> "YYYY-MM-dd HH:mm:ss"
         }
         return date.format(DateTimeFormatter.ofPattern(format))
     }
@@ -391,7 +431,8 @@ data class ReportRequestOutputFormat (
     var title: String = "",
     var columns: List<ReportRequestColumnFormat> = ArrayList(),
     var groups: List<GroupFormat> = ArrayList(),
-    var sortOrder: List<SortOrderFieldFormat> = ArrayList()
+    var sortOrder: List<SortOrderFieldFormat> = ArrayList(),
+    var totals: TotalsFormat = TotalsFormat()
 )
 
 data class ReportRequestColumnFormat (
@@ -426,4 +467,8 @@ enum class SortOrderDirection {
 data class SortOrderFieldFormat (
     var fieldIndex: Int,
     var direction: SortOrderDirection = SortOrderDirection.asc
+)
+
+data class TotalsFormat (
+    var display:Boolean = false
 )
