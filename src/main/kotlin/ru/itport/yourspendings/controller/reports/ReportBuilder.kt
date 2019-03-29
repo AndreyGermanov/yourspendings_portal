@@ -14,10 +14,13 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
     var resultReport = ArrayList<Any>()
 
     fun build():ArrayList<Any> {
-        resultReport = ArrayList()
-        requestDataFromDB(request.query,request.parameters).forEach {
-            parseDBResultRow((it as Array<Any>).map { it } as ArrayList<Any>)
+        var data = requestDataFromDB(request.query,request.parameters) as ArrayList<Any>
+        data = parseData(data)
+        val sortOrder = request.format.groups.map {
+            SortOrderFieldFormat(fieldIndex = it.fieldIndex,direction = SortOrderDirection.asc)
         }
+        sortList(sortOrder,data)
+        groupData(data)
         processGroups()
         processTotals()
         resultReport = toFlatList(request.format,resultReport)
@@ -32,25 +35,40 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         }.resultList
     }
 
-    fun parseDBResultRow(row:ArrayList<Any>) {
-        extractGroupsFromRow(row)
-        val resultRow = ArrayList<Any?>()
-        request.format.columns.forEachIndexed { index,column ->
-            val value = convertFieldValue(request.format.columns[index],row[index])
-            resultRow.add(value)
-            if (column.groupFunction !== null) {
-                currentGroups.forEach {
-                    val groupRow = it["row"] as ArrayList<Any>
-                    groupRow[index] = applyAggregateToColumn(request.format,groupRow,index,value!!)
+    fun parseData(items:ArrayList<Any>):ArrayList<Any> {
+        return items.map {
+            val row = it as Array<Any>
+            val resultRow = ArrayList<Any?>()
+            request.format.columns.forEachIndexed { index,column ->
+                val value = convertFieldValue(request.format.columns[index],row[index])
+                resultRow.add(value)
+            }
+            resultRow
+        } as ArrayList<Any>
+    }
+
+    fun groupData(data:ArrayList<Any>) {
+        data.forEach {
+            val row = it as ArrayList<Any>
+            extractGroupsFromRow(row)
+            val resultRow = ArrayList<Any?>()
+            request.format.columns.forEachIndexed { index,column ->
+                val value = row[index]
+                resultRow.add(value)
+                if (column.groupFunction !== null) {
+                    currentGroups.forEach {
+                        val groupRow = it["row"] as ArrayList<Any>
+                        groupRow[index] = applyAggregateToColumn(request.format,groupRow,index,value!!)
+                    }
                 }
             }
-        }
-        resultRow.add(HashMap<String,Any>())
-        if (currentGroups.size>0) {
-            val groupRow = currentGroups[currentGroups.size-1]["row"] as ArrayList<Any>
-            (groupRow[groupRow.size-1] as ArrayList<Any>).add(resultRow)
-        } else {
-            resultReport.add(resultRow)
+            resultRow.add(HashMap<String,Any>())
+            if (currentGroups.size>0) {
+                val groupRow = currentGroups[currentGroups.size-1]["row"] as ArrayList<Any>
+                (groupRow[groupRow.size-1] as ArrayList<Any>).add(resultRow)
+            } else {
+                resultReport.add(resultRow)
+            }
         }
     }
 
@@ -58,28 +76,31 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         if (request.format.groups.isEmpty()) return
         request.format.groups.forEachIndexed { groupFieldIndex,groupFormat ->
             val groupFieldValue = groupFormat.fieldIndex
-            if (currentGroups.size - 1 >= groupFieldIndex &&
-                    currentGroups[groupFieldIndex]["value"].toString() == row[groupFieldValue].toString()) return
-            if (currentGroups.size > groupFieldIndex) {
-                shrinkTo(currentGroups,groupFieldIndex)
+            val column = request.format.columns[groupFormat.fieldIndex]
+            if (currentGroups.size - 1 < groupFieldIndex ||
+                    currentGroups[groupFieldIndex]["value"].toString() != row[groupFieldValue].toString()) {
+                if (currentGroups.size > groupFieldIndex) {
+                    shrinkTo(currentGroups, groupFieldIndex)
+                }
+                val groupRow = ArrayList<Any>(row.size + 1)
+                row.forEach { groupRow.add("") }
+                groupRow.add("")
+                if (currentGroups.size > 0) {
+                    val parentGroupRow = currentGroups[currentGroups.size - 1]["row"] as ArrayList<Any>
+                    (parentGroupRow[parentGroupRow.size - 1] as ArrayList<Any>).add(groupRow)
+                } else {
+                    resultReport.add(groupRow)
+                }
+                currentGroups.add(hashMapOf("value" to row[groupFieldIndex].toString(),
+                        "row" to groupRow))
+                request.format.groups.forEachIndexed { idx, value ->
+                    if (idx < groupFieldIndex) groupRow[idx] = row[value.fieldIndex].toString()
+                }
+                groupRow[groupFieldIndex] = row[groupFieldIndex]
+                groupRow[row.size] = hashMapOf("groupLevel" to groupFieldIndex, "groupColumn" to groupFieldValue)
+                if (groupFormat.isHierarchy) groupRow[groupFormat.hierarchyIdField] = row[groupFormat.hierarchyIdField]
+                groupRow.add(ArrayList<Any>())
             }
-            val groupRow =  ArrayList<Any>(row.size+1)
-            row.forEach { groupRow.add("")}
-            groupRow.add("")
-            if (currentGroups.size>0) {
-                val parentGroupRow = currentGroups[currentGroups.size-1]["row"] as ArrayList<Any>
-                (parentGroupRow[parentGroupRow.size-1] as ArrayList<Any>).add(groupRow)
-            } else {
-                resultReport.add(groupRow)
-            }
-            currentGroups.add(hashMapOf("value" to row[groupFieldValue].toString(),
-                    "row" to groupRow))
-            request.format.groups.forEachIndexed { idx, value ->
-                if (idx<=groupFieldIndex) groupRow[idx] = row[value.fieldIndex]
-            }
-            groupRow[row.size] = hashMapOf("groupLevel" to groupFieldIndex, "groupColumn" to groupFieldValue)
-            if (groupFormat.isHierarchy) groupRow[groupFormat.hierarchyIdField] = row[groupFormat.hierarchyIdField]
-            groupRow.add(ArrayList<Any>())
         }
     }
 
@@ -87,7 +108,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         if (request.format.groups.isEmpty()) return
         resultReport = processGroup(0, request.format, resultReport)
         resultReport = applyAggregates(request.format, resultReport)
-        if (request.format.sortOrder.isNotEmpty()) sortList(request.format,resultReport)
+        if (request.format.sortOrder.isNotEmpty()) sortList(request.format.sortOrder,resultReport)
     }
 
     fun processTotals() {
@@ -110,8 +131,8 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
     fun applyAggregateToColumn(format: ReportRequestOutputFormat, groupRow: ArrayList<Any>, index:Int, value:Any):Any {
         val column = format.columns[index]
         if (column.groupFunction == null) return groupRow[index]
-        val value = convertFieldValue(format.columns[index],value)
-        var currentValue = convertFieldValue(format.columns[index],groupRow[index])
+        val value = value
+        var currentValue = groupRow[index]
         val currentValueDbl = currentValue.toString().toDoubleOrNull() ?: 0.0
         val valueDbl = value.toString().toDoubleOrNull() ?: 0.0
         currentValue = when (column.groupFunction) {
@@ -120,62 +141,73 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
                     if (value is ArrayList<*>)
                         add(calcAverage(value as ArrayList<Any>))
                     else
-                        add(value!!)
+                        add(value)
                 }
             }
+            GroupFunction.all ->
+                (currentValue as? TreeSet<Any> ?: TreeSet()).apply {
+                    if (value is TreeSet<*>)
+                        addAll(value)
+                    else
+                        addAll(value.toString().split(","))
+                }
             GroupFunction.max -> if (valueDbl>currentValueDbl) valueDbl else currentValue
             GroupFunction.min -> if (valueDbl<currentValueDbl) valueDbl else currentValue
             GroupFunction.sum -> currentValueDbl+valueDbl
             GroupFunction.first -> currentValue ?: valueDbl
-            GroupFunction.last -> valueDbl
+            GroupFunction.last -> value
             else -> valueDbl
         }
-        groupRow[index] = if (column.groupFunction != GroupFunction.avg) convertFieldValue(format.columns[index],
-                currentValue.toString().toDoubleOrNull() ?: 0.0)!!
-        else currentValue!!
+        groupRow[index] = currentValue
 
         return groupRow[index]
     }
 
     fun processGroup(level:Int,format:ReportRequestOutputFormat,items: ArrayList<Any>?): ArrayList<Any> {
         val groupConfig = format.groups[level]
-        if (items == null || !groupConfig.isHierarchy) return items ?: ArrayList()
+        if (items == null) return items ?: ArrayList()
         val result = ArrayList<Any>()
         val groups = HashMap<Int,Any>()
         items.forEach {
-            val row = it as ArrayList<Any>
-            var parentList = ArrayList<HashMap<String,Any>>()
-            parentList= getGroupParentList(row[groupConfig.hierarchyIdField].toString().toInt(),
-                    groupConfig.hierarchyModelName, groupConfig.hierarchyNameField)
-            parentList.add(hashMapOf("id" to row[groupConfig.hierarchyIdField].toString().toInt(),
-                    "name" to row[format.groups[level].fieldIndex],
-                    "parent" to parentList[parentList.size - 1]["id"].toString().toIntOrNull()) as HashMap<String, Any>)
             var groupRow = ArrayList<Any>()
-            parentList.forEachIndexed { hIndex,it ->
-                val parent = groups[it["parent"]?.toString()?.toIntOrNull() ?: 0] as? HashMap<String, Any>
-                if (!groups.containsKey(it["id"].toString().toInt())) {
-                    groupRow = ArrayList()
-                    format.columns.forEach { groupRow.add("") }
-                    if (parent != null) {
-                        format.groups.forEach {
-                            groupRow[it.fieldIndex] = (parent["data"] as ArrayList<Any>)[it.fieldIndex]
+            val row = it as ArrayList<Any>
+            if (groupConfig.isHierarchy) {
+                var parentList = ArrayList<HashMap<String, Any>>()
+                parentList = getGroupParentList(row[groupConfig.hierarchyIdField].toString().toInt(),
+                        groupConfig.hierarchyModelName, groupConfig.hierarchyNameField)
+                parentList.add(hashMapOf("id" to row[groupConfig.hierarchyIdField].toString().toInt(),
+                        "name" to row[format.groups[level].fieldIndex],
+                        "parent" to parentList[parentList.size - 1]["id"].toString().toIntOrNull()) as HashMap<String, Any>)
+                parentList.forEachIndexed { hIndex, it ->
+                    val parent = groups[it["parent"]?.toString()?.toIntOrNull() ?: 0] as? HashMap<String, Any>
+                    if (!groups.containsKey(it["id"].toString().toInt())) {
+                        groupRow = ArrayList()
+                        format.columns.forEach { groupRow.add("") }
+                        if (parent != null) {
+                            format.groups.forEach {
+                                groupRow[it.fieldIndex] = (parent["data"] as ArrayList<Any>)[it.fieldIndex]
+                            }
+                            ((parent["data"] as ArrayList<Any>)[format.columns.size + 1] as ArrayList<Any>).add(groupRow)
+                        } else {
+                            result.add(groupRow)
                         }
-                        ((parent["data"] as ArrayList<Any>)[format.columns.size + 1] as ArrayList<Any>).add(groupRow)
+                        groupRow[groupConfig.fieldIndex] = it["name"].toString()
+                        groupRow.add((row[format.columns.size] as HashMap<String, Any>).clone())
+                        groupRow.add(ArrayList<Any>())
+                        groups[it["id"].toString().toInt()] = hashMapOf("parent" to parent, "data" to groupRow)
                     } else {
-                        result.add(groupRow)
+                        groupRow = (groups[it["id"].toString().toInt()] as HashMap<String, Any>)["data"] as ArrayList<Any>
                     }
-                    groupRow[groupConfig.fieldIndex] = it["name"].toString()
-                    groupRow.add((row[format.columns.size] as HashMap<String, Any>).clone())
-                    groupRow.add(ArrayList<Any>())
-                    groups[it["id"].toString().toInt()] = hashMapOf("parent" to parent, "data" to groupRow)
-                } else {
-                    groupRow = (groups[it["id"].toString().toInt()] as HashMap<String, Any>)["data"] as ArrayList<Any>
+                    groupRow = applyAggregatesToRow(format, groupRow, row)
+                    (groupRow[format.columns.size] as HashMap<String, Any>)["hierarchyLevel"] = hIndex
                 }
-                groupRow = applyAggregatesToRow(format,groupRow,row)
-                (groupRow[format.columns.size] as HashMap<String, Any>)["hierarchyLevel"] = hIndex
             }
-            row[format.columns.size + 1] = processGroup(level+1,format,row[format.columns.size + 1] as? ArrayList<Any>)
-            (groupRow[format.columns.size + 1] as ArrayList<Any>).addAll(row[format.columns.size + 1] as ArrayList<Any>)
+            if (level < format.groups.size-1) {
+                row[format.columns.size + 1] = processGroup(level + 1, format, row[format.columns.size + 1] as? ArrayList<Any>)
+            }
+            if (!groupConfig.isHierarchy) result.add(row)
+            if (groupRow.isNotEmpty())
+                (groupRow[format.columns.size + 1] as ArrayList<Any>).addAll(row[format.columns.size + 1] as ArrayList<Any>)
         }
         return result
     }
@@ -192,14 +224,21 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         return items.map {item ->
             val item = item as ArrayList<Any>
             format.columns.forEachIndexed { index,column ->
-                if (column.groupFunction == GroupFunction.avg && (item[format.columns.size] as HashMap<String, Any>).containsKey("groupLevel")) {
-                    var list = (item[index] as? ArrayList<Any> ?: ArrayList())
+                if  ((item[format.columns.size] as HashMap<String, Any>).containsKey("groupLevel")) {
+                    if (column.groupFunction == GroupFunction.avg) {
+                        var list = (item[index] as? ArrayList<Any> ?: ArrayList())
 
-                    var value = 0.0
-                    if (list.size>0)
-                        value = calcAverage(list)
+                        var value = 0.0
+                        if (list.size > 0)
+                            value = calcAverage(list)
 
-                    item[index] = convertFieldValue(column,value)!!
+                        item[index] = convertFieldValue(column, value)!!
+                    } else if (column.groupFunction == GroupFunction.all) {
+                        var list = (item[index] as? TreeSet<Any> ?: TreeSet())
+                        if (list.size > 0) item[index] = list.joinToString(",")
+                    } else if (column.groupFunction != null) {
+                        item[index] = convertFieldValue(column, item[index])!!
+                    }
                 }
             }
             if (item.size>format.columns.size+1) {
@@ -236,16 +275,17 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         return result
     }
 
-    fun sortList(format:ReportRequestOutputFormat,items: ArrayList<Any>) {
+    fun sortList(format:List<SortOrderFieldFormat>,items: ArrayList<Any>) {
+        if (format.isEmpty()) return
         items.sortWith(Comparator {item1,item2 ->
-            format.sortOrder.map {
+            format.map {
                 when (it.direction) {
                     SortOrderDirection.asc ->
-                        compareFieldValues(format.columns[it.fieldIndex],
+                        compareFieldValues(request.format.columns[it.fieldIndex],
                                 (item1 as ArrayList<Any>)[it.fieldIndex],
                                 (item2 as ArrayList<Any>)[it.fieldIndex])
                     SortOrderDirection.desc ->
-                        compareFieldValues(format.columns[it.fieldIndex],
+                        compareFieldValues(request.format.columns[it.fieldIndex],
                                 (item1 as ArrayList<Any>)[it.fieldIndex],
                                 (item2 as ArrayList<Any>)[it.fieldIndex])*-1
                 }
@@ -254,8 +294,8 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
             }
         })
         items.forEach {
-            if ((it as ArrayList<Any>).size>format.columns.size+1) {
-                sortList(format, it[format.columns.size + 1] as ArrayList<Any>)
+            if ((it as ArrayList<Any>).size>request.format.columns.size+1) {
+                sortList(format, it[request.format.columns.size + 1] as ArrayList<Any>)
             }
         }
     }
@@ -294,7 +334,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         if (value is ArrayList<*>) return value
         return when (format.type) {
             "decimal" -> convertDecimalValue(format,value)
-            "integer" -> value.toString().toIntOrNull() ?: 0
+            "integer" -> value.toString().toIntOrNull() ?: value.toString()
             "date","datetime","time","timestamp" -> convertDateTimeValue(format,value)
             else -> value
         }
@@ -310,14 +350,14 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
     }
 
     fun convertDecimalValue(format:ReportRequestColumnFormat,value:Any?):Double {
-        var value = value.toString().toDoubleOrNull() ?: return 0.0
+        var value = value.toString().toDoubleOrNull() ?: return value as? Double ?: 0.0
         if (format.decimals != null)
             value = BigDecimal(value).setScale(format.decimals!!, RoundingMode.HALF_EVEN).toDouble()
         return value
     }
 
     fun convertDateTimeValue(format:ReportRequestColumnFormat,value:Any?):String {
-        var dt = value as? Date ?: return ""
+        var dt = value as? Date ?: return value.toString()
         var date = LocalDateTime.ofEpochSecond(dt.time/1000,0, ZoneOffset.UTC)
         if (format.type == "timestamp")
             return date.toInstant(ZoneOffset.UTC).epochSecond.toString()

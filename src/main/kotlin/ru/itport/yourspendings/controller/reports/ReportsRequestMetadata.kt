@@ -26,7 +26,7 @@ data class ReportRequestColumnFormat (
 )
 
 enum class GroupFunction {
-    min, max, avg, sum, first, last
+    min, max, avg, sum, first, last, all
 }
 
 data class GroupRow (
