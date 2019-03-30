@@ -58,7 +58,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
                 if (column.groupFunction !== null) {
                     currentGroups.forEach {
                         val groupRow = it["row"] as ArrayList<Any>
-                        groupRow[index] = applyAggregateToColumn(request.format,groupRow,index,value!!)
+                        groupRow[index] = applyAggregateToColumn(request.format,groupRow,index,value)
                     }
                 }
             }

@@ -29,8 +29,8 @@ class ReportsRequestParser(val body:Any?) {
             val format = formatJson as? MutableMap<String,Any> ?: return this
             this.title = format["title"].toString()
             this.columns = parseColumns(format["columns"])
-            this.groups = parseGroups(format["groups"])
-            this.sortOrder = parseSortOrder(format["sort"])
+            this.groups = parseGroups(format["groups"],this.columns)
+            this.sortOrder = parseSortOrder(format["sort"],this.columns)
             this.totals = parseTotals(format["totals"])
         }
     }
@@ -38,6 +38,7 @@ class ReportsRequestParser(val body:Any?) {
     private fun parseColumns(columns:Any?):List<ReportRequestColumnFormat> {
         return (columns as? ArrayList<MutableMap<String, Any>> ?: ArrayList()).map {
             ReportRequestColumnFormat(
+                    id = it["id"]?.toString() ?: "",
                     title = it["title"].toString(),
                     type = it["type"].toString(),
                     decimals = it["decimals"].toString().toIntOrNull(),
@@ -49,15 +50,17 @@ class ReportsRequestParser(val body:Any?) {
         }
     }
 
-    private fun parseGroups(groups:Any?):List<GroupFormat> {
-        return (groups as? ArrayList<HashMap<String, Any>> ?: ArrayList()).map {
+    private fun parseGroups(groups:Any?,columns:List<ReportRequestColumnFormat>):List<GroupFormat> {
+        return (groups as? ArrayList<HashMap<String, Any>> ?: ArrayList()).filter {
+            !it.containsKey("hidden") || !it["hidden"].toString().toBoolean()
+        }.map {
             GroupFormat(
-                    fieldIndex = it["fieldIndex"].toString().toIntOrNull() ?: 0,
+                    fieldIndex = getFieldIndex(it["fieldIndex"],columns),
                     isHierarchy = it.containsKey("hierarchy")
             ).apply {
                 if (this.isHierarchy) {
                     val options = it["hierarchy"] as HashMap<String, Any>
-                    this.hierarchyIdField = options["idField"].toString().toIntOrNull() ?: 0
+                    this.hierarchyIdField = getFieldIndex(options["idField"],columns)
                     this.hierarchyNameField = options["nameField"]?.toString() ?: ""
                     this.hierarchyModelName = options["entity"]?.toString() ?: ""
                 }
@@ -65,10 +68,10 @@ class ReportsRequestParser(val body:Any?) {
         }
     }
 
-    private fun parseSortOrder(sort:Any?):List<SortOrderFieldFormat> {
+    private fun parseSortOrder(sort:Any?,columns:List<ReportRequestColumnFormat>):List<SortOrderFieldFormat> {
         return (sort as? ArrayList<HashMap<String, Any>> ?: ArrayList()).map {
             SortOrderFieldFormat(
-                    fieldIndex = it["fieldIndex"].toString().toIntOrNull() ?: 0,
+                    fieldIndex = getFieldIndex(it["fieldIndex"],columns),
                     direction = if (it["direction"] != null && it["direction"].toString().isNotEmpty())
                         SortOrderDirection.valueOf(it["direction"].toString())
                     else SortOrderDirection.asc
@@ -82,5 +85,13 @@ class ReportsRequestParser(val body:Any?) {
                 this.display = it["display"]?.toString()?.toBoolean() ?: false
             }
         }
+    }
+
+    private fun getFieldIndex(fieldId:Any?,columns:List<ReportRequestColumnFormat>):Int {
+        if (fieldId === null) return 0
+        if (fieldId is String) {
+            return columns.indexOfFirst { it.id == fieldId }
+        } else if (fieldId is Int) return fieldId
+        return 0
     }
 }

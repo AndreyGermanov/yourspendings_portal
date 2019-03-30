@@ -18,6 +18,7 @@ data class ReportRequestOutputFormat (
 )
 
 data class ReportRequestColumnFormat (
+        var id: String = "",
         var title: String,
         var type: String,
         var decimals:Int?,
