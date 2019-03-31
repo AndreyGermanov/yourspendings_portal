@@ -29,6 +29,9 @@ class ReportQuery (
     @Column(name = "output_format")
     var outputFormat:String,
 
+    @Column(name="post_script")
+    var postScript:String,
+
     @ManyToOne
     @JoinColumn(name = "report_id")
     var report:Report? = null

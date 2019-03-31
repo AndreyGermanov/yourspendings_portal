@@ -18,6 +18,7 @@ class ReportsController:EntityController<Report>("Report") {
         return hashMapOf(
                 "uid" to item.uid,
                 "name" to item.name,
+                "postScript" to item.postScript,
                 "queries" to item.queries?.map {
                     hashMapOf(
                             "name" to it.name,
@@ -26,6 +27,7 @@ class ReportsController:EntityController<Report>("Report") {
                             "query" to it.query,
                             "params" to it.params,
                             "outputFormat" to it.outputFormat,
+                            "postScript" to it.postScript,
                             "report" to it.report!!.uid
                     )
                 }

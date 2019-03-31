@@ -177,7 +177,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
                         groupConfig.hierarchyModelName, groupConfig.hierarchyNameField)
                 parentList.add(hashMapOf("id" to row[groupConfig.hierarchyIdField].toString().toInt(),
                         "name" to row[format.groups[level].fieldIndex],
-                        "parent" to parentList[parentList.size - 1]["id"].toString().toIntOrNull()) as HashMap<String, Any>)
+                        "parent" to if (parentList.isNotEmpty()) parentList[parentList.size - 1]["id"].toString().toIntOrNull() else null) as HashMap<String,Any>)
                 parentList.forEachIndexed { hIndex, it ->
                     val parent = groups[it["parent"]?.toString()?.toIntOrNull() ?: 0] as? HashMap<String, Any>
                     if (!groups.containsKey(it["id"].toString().toInt())) {

@@ -14,8 +14,12 @@ class Report (
     @Column(name = "name")
     var name: String,
 
+    @Column(name="post_script")
+    var postScript:String,
+
     @OneToMany(mappedBy = "report", cascade = [CascadeType.ALL])
     @JsonBackReference(value = "report-query")
     var queries: List<ReportQuery>? = null
+
 
 ):BaseModel()
