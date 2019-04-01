@@ -16,10 +16,18 @@ class ReportsRequestParser(val body:Any?) {
         this.queries = queries.map {query ->
             ReportRequest(
                 query = query["query"].toString(),
-                parameters = query["parameters"] as? HashMap<String, Any> ?: HashMap(),
+                parameters = parseQueryParameters(query["params"]),
                 format = this.parseOutputFormat(query["outputFormat"])
             )
         } as? ArrayList<ReportRequest> ?: ArrayList()
+    }
+
+    private fun parseQueryParameters(params:Any?):MutableMap<String,Any> {
+        if (params is MutableMap<*,*>) return params as MutableMap<String,Any>
+        if (params is String) {
+            return ObjectMapper().readValue(params) as? MutableMap<String,Any> ?: HashMap()
+        }
+        return HashMap();
     }
 
     private fun parseOutputFormat(body:Any?):ReportRequestOutputFormat {
