@@ -1,5 +1,6 @@
 package ru.itport.yourspendings.controller.reports
 
+import org.springframework.web.bind.annotation.RequestParam
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDateTime
@@ -27,20 +28,23 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         return resultReport
     }
 
-    fun requestDataFromDB(query:String,parameters:MutableMap<String,Any>):MutableList<Any?> {
-        return entityManager.createQuery(query).apply {
-            parameters.forEach {
-                this.setParameter(it.key,it.value)
-            }
-        }.resultList
+    fun requestDataFromDB(query:String,parameters:ArrayList<QueryParameter>):MutableList<Any?> {
+        var query = query
+        parameters.forEach {
+            query = query.replace(":${it.name}",it.getParamValue())
+        }
+        return entityManager.createQuery(query).resultList
     }
 
     fun parseData(items:ArrayList<Any>):ArrayList<Any> {
         return items.map {
             val row = it as Array<Any>
             val resultRow = ArrayList<Any?>()
-            request.format.columns.forEachIndexed { index,column ->
-                val value = convertFieldValue(request.format.columns[index],row[index])
+            row.forEachIndexed { index, data->
+                var value = data
+                if (request.format.columns.size>index) {
+                    value = convertFieldValue(request.format.columns[index],data)!!
+                }
                 resultRow.add(value)
             }
             resultRow
@@ -52,15 +56,18 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
             val row = it as ArrayList<Any>
             extractGroupsFromRow(row)
             val resultRow = ArrayList<Any?>()
-            request.format.columns.forEachIndexed { index,column ->
+            row.forEachIndexed { index, value ->
                 val value = row[index]
-                resultRow.add(value)
-                if (column.groupFunction !== null) {
-                    currentGroups.forEach {
-                        val groupRow = it["row"] as ArrayList<Any>
-                        groupRow[index] = applyAggregateToColumn(request.format,groupRow,index,value)
+                if (request.format.columns.isNotEmpty() && index < request.format.columns.size) {
+                    val column = request.format.columns[index]
+                    if (column.groupFunction !== null) {
+                        currentGroups.forEach {
+                            val groupRow = it["row"] as ArrayList<Any>
+                            groupRow[index] = applyAggregateToColumn(request.format,groupRow,index,value)
+                        }
                     }
                 }
+                resultRow.add(value)
             }
             resultRow.add(HashMap<String,Any>())
             if (currentGroups.size>0) {
@@ -255,7 +262,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
             val item = it as ArrayList<Any>
             result.add(ArrayList<Any>().apply {
                 item.forEachIndexed{ index,it ->
-                    if (index<format.columns.size + 1) { add(it) }
+                    if (format.columns.isEmpty() || index<format.columns.size + 1) { add(it) }
                 }
                 if (parentRowNumber!=null) {
                     (this[format.columns.size] as? HashMap<String, Any> ?: HashMap())["parent"] = parentRowNumber-1
@@ -263,7 +270,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
             })
             startingRow ++
             var nested: ArrayList<Any>?
-            if (item.size>format.columns.size+1) {
+            if (format.columns.isNotEmpty() && item.size>format.columns.size+1) {
                 nested = item[format.columns.size + 1] as? ArrayList<Any>
                 if (nested != null && nested.size > 0) {
                     val nestedList = toFlatList(format, nested,startingRow)

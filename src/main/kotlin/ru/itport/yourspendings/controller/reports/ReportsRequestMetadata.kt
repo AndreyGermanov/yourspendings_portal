@@ -5,7 +5,7 @@ import java.util.HashMap
 
 data class ReportRequest (
         var query:String = "",
-        var parameters: MutableMap<String,Any> = HashMap(),
+        var parameters: ArrayList<QueryParameter> = ArrayList(),
         var format: ReportRequestOutputFormat
 )
 
@@ -55,3 +55,13 @@ data class SortOrderFieldFormat (
 data class TotalsFormat (
         var display:Boolean = false
 )
+
+data class QueryParameter (
+        var name:String,
+        var value:Any,
+        var options:HashMap<String,Any>? = null
+) {
+    fun getParamValue():String {
+        return this.value.toString()
+    }
+}

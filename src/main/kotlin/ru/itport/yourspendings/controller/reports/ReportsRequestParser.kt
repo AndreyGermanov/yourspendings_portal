@@ -22,17 +22,19 @@ class ReportsRequestParser(val body:Any?) {
         } as? ArrayList<ReportRequest> ?: ArrayList()
     }
 
-    private fun parseQueryParameters(params:Any?):MutableMap<String,Any> {
-        if (params is MutableMap<*,*>) return params as MutableMap<String,Any>
-        if (params is String) {
-            return ObjectMapper().readValue(params) as? MutableMap<String,Any> ?: HashMap()
+    private fun parseQueryParameters(params:Any?):ArrayList<QueryParameter> {
+        if (params is String && params.length>0) {
+            val params = ObjectMapper().readValue(params) as? ArrayList<MutableMap<String,Any>> ?: ArrayList()
+            return params.map {
+                QueryParameter(name = it["name"].toString(), value = it["value"] ?: "")
+            } as ArrayList<QueryParameter>
         }
-        return HashMap();
+        return ArrayList()
     }
 
     private fun parseOutputFormat(body:Any?):ReportRequestOutputFormat {
         var formatJson = body ?: return ReportRequestOutputFormat()
-        if (formatJson is String) formatJson = ObjectMapper().readValue(formatJson)
+        if (formatJson is String && formatJson.length>0) formatJson = ObjectMapper().readValue(formatJson)
         return ReportRequestOutputFormat().apply {
             val format = formatJson as? MutableMap<String,Any> ?: return this
             this.title = format["title"].toString()
