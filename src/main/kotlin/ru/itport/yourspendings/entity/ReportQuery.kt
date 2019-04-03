@@ -32,6 +32,9 @@ class ReportQuery (
     @Column(name="post_script")
     var postScript:String,
 
+    @Column(name="event_handlers")
+    var eventHandlers:String,
+
     @ManyToOne
     @JoinColumn(name = "report_id")
     var report:Report? = null

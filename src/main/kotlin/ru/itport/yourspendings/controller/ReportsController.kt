@@ -28,6 +28,7 @@ class ReportsController:EntityController<Report>("Report") {
                             "params" to it.params,
                             "outputFormat" to it.outputFormat,
                             "postScript" to it.postScript,
+                            "eventHandlers" to it.eventHandlers,
                             "report" to it.report!!.uid
                     )
                 }
@@ -38,7 +39,7 @@ class ReportsController:EntityController<Report>("Report") {
 
     @PostMapping("/generate")
     fun generate(@RequestBody body:Any=ArrayList<MutableMap<String,Any>>()):Any? {
-        val requests = ReportsRequestParser(body).apply { parse() }.queries
+        val requests = ReportsRequestParser(body,entityManager).apply { parse() }.queries
         return ReportsBuilder(entityManager,requests).apply { build() }.reports
     }
 

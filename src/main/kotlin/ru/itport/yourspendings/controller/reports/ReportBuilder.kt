@@ -1,6 +1,5 @@
 package ru.itport.yourspendings.controller.reports
 
-import org.springframework.web.bind.annotation.RequestParam
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDateTime
@@ -83,7 +82,6 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         if (request.format.groups.isEmpty()) return
         request.format.groups.forEachIndexed { groupFieldIndex,groupFormat ->
             val groupFieldValue = groupFormat.fieldIndex
-            val column = request.format.columns[groupFormat.fieldIndex]
             if (currentGroups.size - 1 < groupFieldIndex ||
                     currentGroups[groupFieldIndex]["value"].toString() != row[groupFieldValue].toString()) {
                 if (currentGroups.size > groupFieldIndex) {
@@ -182,6 +180,11 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
                 var parentList = ArrayList<HashMap<String, Any>>()
                 parentList = getGroupParentList(row[groupConfig.hierarchyIdField].toString().toInt(),
                         groupConfig.hierarchyModelName, groupConfig.hierarchyNameField)
+                if (groupConfig.hierarchyStartLevel>0) {
+                    for (i in 0 until groupConfig.hierarchyStartLevel) {
+                        parentList.removeAt(0)
+                    }
+                }
                 parentList.add(hashMapOf("id" to row[groupConfig.hierarchyIdField].toString().toInt(),
                         "name" to row[format.groups[level].fieldIndex],
                         "parent" to if (parentList.isNotEmpty()) parentList[parentList.size - 1]["id"].toString().toIntOrNull() else null) as HashMap<String,Any>)
@@ -342,7 +345,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         return when (format.type) {
             "decimal" -> convertDecimalValue(format,value)
             "integer" -> value.toString().toIntOrNull() ?: value.toString()
-            "date","datetime","time","timestamp" -> convertDateTimeValue(format,value)
+            "date","datetime","time","timestamp","weekday" -> convertDateTimeValue(format,value)
             else -> value
         }
     }
@@ -368,6 +371,8 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         var date = LocalDateTime.ofEpochSecond(dt.time/1000,0, ZoneOffset.UTC)
         if (format.type == "timestamp")
             return date.toInstant(ZoneOffset.UTC).epochSecond.toString()
+        if (format.type == "weekday")
+            return date.dayOfWeek.name
         val format = when {
             format.dateFormat.isNotEmpty() -> format.dateFormat
             format.type == "date" -> "YYYY-MM-dd"

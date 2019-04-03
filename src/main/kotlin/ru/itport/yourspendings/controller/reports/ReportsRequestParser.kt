@@ -4,8 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import java.util.ArrayList
 import java.util.HashMap
+import javax.persistence.EntityManager
 
-class ReportsRequestParser(val body:Any?) {
+class ReportsRequestParser(val body:Any?,val entityManager: EntityManager) {
 
     var queries: ArrayList<ReportRequest> = ArrayList()
 
@@ -26,7 +27,12 @@ class ReportsRequestParser(val body:Any?) {
         if (params is String && params.length>0) {
             val params = ObjectMapper().readValue(params) as? ArrayList<MutableMap<String,Any>> ?: ArrayList()
             return params.map {
-                QueryParameter(name = it["name"].toString(), value = it["value"] ?: "")
+                QueryParameter(
+                        entityManager = entityManager,
+                        name = it["name"].toString(),
+                        value = it["value"] ?: "",
+                        options = it["options"] as? HashMap<String,Any> ?: HashMap()
+                )
             } as ArrayList<QueryParameter>
         }
         return ArrayList()
@@ -73,6 +79,7 @@ class ReportsRequestParser(val body:Any?) {
                     this.hierarchyIdField = getFieldIndex(options["idField"],columns)
                     this.hierarchyNameField = options["nameField"]?.toString() ?: ""
                     this.hierarchyModelName = options["entity"]?.toString() ?: ""
+                    this.hierarchyStartLevel = options["startLevel"]?.toString()?.toIntOrNull() ?: 0
                 }
             }
         }
