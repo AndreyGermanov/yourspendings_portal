@@ -29,6 +29,7 @@ class ReportsController:EntityController<Report>("Report") {
                             "outputFormat" to it.outputFormat,
                             "postScript" to it.postScript,
                             "eventHandlers" to it.eventHandlers,
+                            "layout" to it.layout,
                             "report" to it.report!!.uid
                     )
                 }

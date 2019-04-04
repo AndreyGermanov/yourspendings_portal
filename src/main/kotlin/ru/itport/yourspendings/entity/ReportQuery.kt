@@ -35,6 +35,9 @@ class ReportQuery (
     @Column(name="event_handlers")
     var eventHandlers:String,
 
+    @Column(name="layout")
+    var layout:String,
+
     @ManyToOne
     @JoinColumn(name = "report_id")
     var report:Report? = null
