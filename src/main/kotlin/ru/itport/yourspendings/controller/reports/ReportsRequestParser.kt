@@ -25,8 +25,8 @@ class ReportsRequestParser(val body:Any?,val entityManager: EntityManager) {
 
     private fun parseQueryParameters(params:Any?):ArrayList<QueryParameter> {
         if (params is String && params.length>0) {
-            val params = ObjectMapper().readValue(params) as? ArrayList<MutableMap<String,Any>> ?: ArrayList()
-            return params.map {
+            val params = ObjectMapper().readValue(params) as? HashMap<String,Any> ?: HashMap()
+            return (params["sql_query_params"] as? ArrayList<MutableMap<String,Any>> ?: ArrayList()).map {
                 QueryParameter(
                         entityManager = entityManager,
                         name = it["name"].toString(),
@@ -87,7 +87,6 @@ class ReportsRequestParser(val body:Any?,val entityManager: EntityManager) {
     }
 
     private fun parseSortOrder(sort:Any?,columns:List<ReportRequestColumnFormat>):List<SortOrderFieldFormat> {
-        println(sort)
         return (sort as? ArrayList<HashMap<String, Any>> ?: ArrayList()).map {
             SortOrderFieldFormat(
                     fieldIndex = getFieldIndex(it["fieldIndex"],columns),
