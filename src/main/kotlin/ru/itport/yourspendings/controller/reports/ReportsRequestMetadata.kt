@@ -44,7 +44,8 @@ data class GroupFormat (
         var hierarchyIdField: Int = 0,
         var hierarchyNameField:String = "",
         var hierarchyModelName:String = "",
-        var hierarchyStartLevel:Int = 0
+        var hierarchyStartLevel:Int = 0,
+        var sortOrder:List<SortOrderFieldFormat> = ArrayList()
 )
 
 enum class SortOrderDirection {

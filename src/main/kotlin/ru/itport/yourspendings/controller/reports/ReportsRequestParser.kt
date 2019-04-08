@@ -81,11 +81,13 @@ class ReportsRequestParser(val body:Any?,val entityManager: EntityManager) {
                     this.hierarchyModelName = options["entity"]?.toString() ?: ""
                     this.hierarchyStartLevel = options["startLevel"]?.toString()?.toIntOrNull() ?: 0
                 }
+                this.sortOrder = parseSortOrder(it["sort"],columns)
             }
         }
     }
 
     private fun parseSortOrder(sort:Any?,columns:List<ReportRequestColumnFormat>):List<SortOrderFieldFormat> {
+        println(sort)
         return (sort as? ArrayList<HashMap<String, Any>> ?: ArrayList()).map {
             SortOrderFieldFormat(
                     fieldIndex = getFieldIndex(it["fieldIndex"],columns),

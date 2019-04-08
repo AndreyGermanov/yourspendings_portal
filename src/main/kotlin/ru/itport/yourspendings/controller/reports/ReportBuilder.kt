@@ -19,7 +19,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         val sortOrder = request.format.groups.map {
             SortOrderFieldFormat(fieldIndex = it.fieldIndex,direction = SortOrderDirection.asc)
         }
-        sortList(sortOrder,data)
+        sortList(sortOrder,data,false)
         groupData(data)
         processGroups()
         processTotals()
@@ -113,7 +113,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         if (request.format.groups.isEmpty()) return
         resultReport = processGroup(0, request.format, resultReport)
         resultReport = applyAggregates(request.format, resultReport)
-        if (request.format.sortOrder.isNotEmpty()) sortList(request.format.sortOrder,resultReport)
+        if (request.format.sortOrder.isNotEmpty()) sortList(request.format.sortOrder,resultReport,true)
     }
 
     fun processTotals() {
@@ -285,7 +285,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         return result
     }
 
-    fun sortList(format:List<SortOrderFieldFormat>,items: ArrayList<Any>) {
+    fun sortList(format:List<SortOrderFieldFormat>,items: ArrayList<Any>,useGroupConfig:Boolean) {
         if (format.isEmpty()) return
         items.sortWith(Comparator {item1,item2 ->
             format.map {
@@ -305,7 +305,15 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         })
         items.forEach {
             if ((it as ArrayList<Any>).size>request.format.columns.size+1) {
-                sortList(format, it[request.format.columns.size + 1] as ArrayList<Any>)
+                var format = format
+                if (useGroupConfig) {
+                    val groupColumn = (it[request.format.columns.size] as? HashMap<String,Any> ?: HashMap())["groupColumn"] as? Int
+                    if (groupColumn != null && request.format.groups.size >= groupColumn) {
+                        val sortOrder = request.format.groups[groupColumn].sortOrder
+                        if (sortOrder.isNotEmpty()) format = sortOrder
+                    }
+                }
+                sortList(format, it[request.format.columns.size + 1] as ArrayList<Any>,true)
             }
         }
     }
