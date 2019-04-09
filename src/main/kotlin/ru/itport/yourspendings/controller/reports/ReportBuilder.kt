@@ -353,7 +353,7 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
         return when (format.type) {
             "decimal" -> convertDecimalValue(format,value)
             "integer" -> value.toString().toIntOrNull() ?: value.toString()
-            "date","datetime","time","timestamp","weekday" -> convertDateTimeValue(format,value)
+            "date","datetime","time","timestamp","weekday", "weekday_number" -> convertDateTimeValue(format,value)
             else -> value
         }
     }
@@ -381,6 +381,8 @@ class ReportBuilder(val entityManager: EntityManager, val request: ReportRequest
             return date.toInstant(ZoneOffset.UTC).epochSecond.toString()
         if (format.type == "weekday")
             return date.dayOfWeek.name
+        if (format.type == "weekday_number")
+            return date.dayOfWeek.value.toString()
         val format = when {
             format.dateFormat.isNotEmpty() -> format.dateFormat
             format.type == "date" -> "YYYY-MM-dd"
